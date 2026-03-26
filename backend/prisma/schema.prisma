@@ -1,0 +1,146 @@
+// =============================================================
+// DATABASE SCHEMA — Sprint 1
+//
+// This schema contains only the models needed for Sprint 1:
+//   - User (login/register)
+//   - Category + Product (product listing)
+//   - Cart + CartItem (guest-to-logged-in cart)
+//   - Wishlist + WishlistItem (basic wishlist)
+//
+// Models for later sprints (Order, Delivery, Invoice, Review,
+// Discount) are NOT included yet — they will be added via new
+// Prisma migrations in Sprints 2–5.
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- User roles ---
+enum Role {
+  customer
+  sales_manager
+  product_manager
+}
+
+// --- USER (Sprint 1) ---
+// Req 13: customer properties — ID, name, tax ID, email, home address, password
+// Req 16: password stored as bcrypt hash, never in plain text
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(customer)
+  taxId        String?   @map("tax_id")
+  homeAddress  String?   @map("home_address")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  cart         Cart?
+  wishlist     Wishlist?
+
+  @@map("users")
+}
+
+// --- CATEGORY (Sprint 1) ---
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  products  Product[]
+
+  @@map("categories")
+}
+
+// --- PRODUCT (Sprint 1) ---
+// Req 9: ID, name, model, serial number, description, quantity,
+//        price, warranty status, distributor information
+model Product {
+  id              Int       @id @default(autoincrement())
+  name            String
+  model           String    @default("")
+  serialNumber    String    @default("") @map("serial_number")
+  description     String    @default("")
+  price           Decimal   @db.Decimal(10, 2)
+  cost            Decimal   @db.Decimal(10, 2)
+  stock           Int       @default(0)
+  warrantyStatus  String    @default("") @map("warranty_status")
+  distributorInfo String    @default("") @map("distributor_info")
+  categoryId      Int       @map("category_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  category      Category       @relation(fields: [categoryId], references: [id])
+  images        ProductImage[]
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
+
+  @@index([categoryId])
+  @@index([name])
+  @@map("products")
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  productId Int     @map("product_id")
+  url       String
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// --- CART (Sprint 1) ---
+// Req 4: users can add to cart without logging in (guest cart on frontend,
+// synced to this server cart after login)
+model Cart {
+  id     Int        @id @default(autoincrement())
+  userId Int        @unique @map("user_id")
+
+  user   User       @relation(fields: [userId], references: [id])
+  items  CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id                Int     @id @default(autoincrement())
+  cartId            Int     @map("cart_id")
+  productId         Int     @map("product_id")
+  quantity          Int     @default(1)
+  unitPriceSnapshot Decimal @db.Decimal(10, 2) @map("unit_price_snapshot")
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+// --- WISHLIST (Sprint 1 — basic) ---
+model Wishlist {
+  id     Int            @id @default(autoincrement())
+  userId Int            @unique @map("user_id")
+
+  user   User           @relation(fields: [userId], references: [id])
+  items  WishlistItem[]
+
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id         Int      @id @default(autoincrement())
+  wishlistId Int      @map("wishlist_id")
+  productId  Int      @map("product_id")
+
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([wishlistId, productId])
+  @@map("wishlist_items")
+}
