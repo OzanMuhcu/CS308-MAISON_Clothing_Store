@@ -1,4 +1,8 @@
+import { useNavigate } from 'react-router-dom';
+
 export default function HomePage() {
+  const navigate = useNavigate();
+
   return (
     <div className="home-page">
       <section className="hero">
@@ -12,8 +16,8 @@ export default function HomePage() {
         </p>
 
         <div className="hero-buttons">
-          <button className="primary-btn">Login</button>
-          <button className="secondary-btn">Register</button>
+          <button className="primary-btn" onClick={() => navigate('/login')}>Login</button>
+          <button className="secondary-btn" onClick={() => navigate('/register')}>Register</button>
         </div>
       </section>
 

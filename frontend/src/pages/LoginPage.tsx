@@ -57,7 +57,7 @@ export default function LoginPage() {
 
         <p className="login-register-row">
           Don&apos;t have an account?{' '}
-          <Link to="/login" className="login-register-link">
+          <Link to="/register" className="login-register-link">
             Register
           </Link>
         </p>
