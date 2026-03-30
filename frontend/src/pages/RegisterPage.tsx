@@ -20,8 +20,10 @@ export default function RegisterPage() {
       toast.success('Account created!'); 
       navigate('/'); 
     }
-    catch (err: any) { 
-      toast.error(err.message || 'Registration failed'); 
+    catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Registration failed';
+      toast.error(message);
     }
     finally { 
       setLoading(false); 
