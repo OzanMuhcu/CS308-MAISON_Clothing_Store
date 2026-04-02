@@ -1,4 +1,4 @@
-# MAISON — Online Clothing Store (Sprint 1)
+# MAISON — Online Clothing Store (Sprint 3)
 
 A professional e-commerce application for a clothing brand, built as a CS 308 Software Engineering course project.
 
