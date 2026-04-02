@@ -1,4 +1,5 @@
 # MAISON — Online Clothing Store (Sprint 3)
+### Stable Baseline: Sprint 1 + Sprint 2 completed (used as foundation for Sprint 3)
 
 A professional e-commerce application for a clothing brand, built as a CS 308 Software Engineering course project.
 
