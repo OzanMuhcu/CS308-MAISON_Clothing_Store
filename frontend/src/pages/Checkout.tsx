@@ -12,6 +12,17 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
+type FormErrors = {
+  fullName?: string;
+  address?: string;
+  city?: string;
+  zipCode?: string;
+  cardholderName?: string;
+  cardNumber?: string;
+  expiryDate?: string;
+  cvv?: string;
+};
+
 export default function Checkout() {
   const { items, count, total, clearCart } = useCart();
   const { user } = useAuth();
@@ -19,6 +30,7 @@ export default function Checkout() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
   const [orderSuccess, setOrderSuccess] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
@@ -26,13 +38,83 @@ export default function Checkout() {
     address: "",
     city: "",
     zipCode: "",
+    cardholderName: user?.name || "",
     cardNumber: "",
     expiryDate: "",
     cvv: "",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    let nextValue = value;
+
+    if (name === "cardNumber") {
+      nextValue = value.replace(/\D/g, "").slice(0, 16);
+    }
+
+    if (name === "expiryDate") {
+      const digits = value.replace(/\D/g, "").slice(0, 4);
+      nextValue = digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+    }
+
+    if (name === "cvv") {
+      nextValue = value.replace(/\D/g, "").slice(0, 3);
+    }
+
+    setFormData({ ...formData, [name]: nextValue });
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+  };
+
+  const validateForm = () => {
+    const errors: FormErrors = {};
+
+    if (!formData.fullName.trim() || formData.fullName.trim().length < 2) {
+      errors.fullName = "Please enter your full name.";
+    }
+
+    if (!formData.address.trim() || formData.address.trim().length < 5) {
+      errors.address = "Please enter a valid street address.";
+    }
+
+    if (!formData.city.trim() || formData.city.trim().length < 2) {
+      errors.city = "Please enter a valid city.";
+    }
+
+    if (!/^\d{4,10}$/.test(formData.zipCode.trim())) {
+      errors.zipCode = "ZIP code must be 4 to 10 digits.";
+    }
+
+    if (!/^[a-zA-Z\s'.-]{2,}$/.test(formData.cardholderName.trim())) {
+      errors.cardholderName = "Please enter the cardholder name exactly as on card.";
+    }
+
+    if (!/^\d{16}$/.test(formData.cardNumber)) {
+      errors.cardNumber = "Card number must be exactly 16 digits.";
+    }
+
+    const expiryMatch = formData.expiryDate.match(/^(\d{2})\/(\d{2})$/);
+    if (!expiryMatch) {
+      errors.expiryDate = "Expiry date must be in MM/YY format.";
+    } else {
+      const month = Number(expiryMatch[1]);
+      const year = Number(`20${expiryMatch[2]}`);
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+
+      if (month < 1 || month > 12) {
+        errors.expiryDate = "Expiry month must be between 01 and 12.";
+      } else if (year < currentYear || (year === currentYear && month < currentMonth)) {
+        errors.expiryDate = "Card has expired. Please use another card.";
+      }
+    }
+
+    if (!/^\d{3}$/.test(formData.cvv)) {
+      errors.cvv = "CVV must be exactly 3 digits.";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // ─── Place Order ─────────────────────────────────────────
@@ -40,18 +122,23 @@ export default function Checkout() {
     e.preventDefault();
     setError("");
 
-    // Basic client-side validation
-    const fullAddress = `${formData.fullName}, ${formData.address}, ${formData.city} ${formData.zipCode}`.trim();
-    if (fullAddress.length < 10) {
-      setError("Please fill in all address fields.");
+    if (!validateForm()) {
+      setError("Please review and fix the highlighted fields.");
       return;
     }
+
+    const fullAddress = `${formData.fullName}, ${formData.address}, ${formData.city} ${formData.zipCode}`.trim();
 
     setIsSubmitting(true);
     try {
       // DEV-24: Cart stays intact until backend confirms order
       const { data } = await api.post("/orders", {
         shippingAddress: fullAddress,
+        payment: {
+          cardNumber: formData.cardNumber,
+          expiryDate: formData.expiryDate,
+          cvv: formData.cvv,
+        },
       });
 
       // Order confirmed — NOW clear the frontend cart
@@ -131,7 +218,7 @@ export default function Checkout() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Left: Shipping & Payment Form */}
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} noValidate className="space-y-8">
           {/* Shipping Section */}
           <div>
             <h2 className="text-xs tracking-widest uppercase text-brand-400 font-medium mb-4">
@@ -146,6 +233,7 @@ export default function Checkout() {
                 onChange={handleChange}
                 className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
               />
+              {fieldErrors.fullName && <p className="input-error">{fieldErrors.fullName}</p>}
               <input
                 name="address"
                 value={formData.address}
@@ -154,23 +242,30 @@ export default function Checkout() {
                 onChange={handleChange}
                 className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
               />
+              {fieldErrors.address && <p className="input-error">{fieldErrors.address}</p>}
               <div className="grid grid-cols-2 gap-4">
-                <input
-                  name="city"
-                  value={formData.city}
-                  placeholder="City"
-                  required
-                  onChange={handleChange}
-                  className="border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-                />
-                <input
-                  name="zipCode"
-                  value={formData.zipCode}
-                  placeholder="ZIP Code"
-                  required
-                  onChange={handleChange}
-                  className="border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-                />
+                <div>
+                  <input
+                    name="city"
+                    value={formData.city}
+                    placeholder="City"
+                    required
+                    onChange={handleChange}
+                    className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
+                  />
+                  {fieldErrors.city && <p className="input-error">{fieldErrors.city}</p>}
+                </div>
+                <div>
+                  <input
+                    name="zipCode"
+                    value={formData.zipCode}
+                    placeholder="ZIP Code"
+                    required
+                    onChange={handleChange}
+                    className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
+                  />
+                  {fieldErrors.zipCode && <p className="input-error">{fieldErrors.zipCode}</p>}
+                </div>
               </div>
             </div>
           </div>
@@ -182,6 +277,15 @@ export default function Checkout() {
             </h2>
             <div className="space-y-4">
               <input
+                name="cardholderName"
+                value={formData.cardholderName}
+                placeholder="Cardholder Name"
+                required
+                onChange={handleChange}
+                className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
+              />
+              {fieldErrors.cardholderName && <p className="input-error">{fieldErrors.cardholderName}</p>}
+              <input
                 name="cardNumber"
                 value={formData.cardNumber}
                 placeholder="Card Number"
@@ -190,25 +294,32 @@ export default function Checkout() {
                 onChange={handleChange}
                 className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
               />
+              {fieldErrors.cardNumber && <p className="input-error">{fieldErrors.cardNumber}</p>}
               <div className="grid grid-cols-2 gap-4">
-                <input
-                  name="expiryDate"
-                  value={formData.expiryDate}
-                  placeholder="MM / YY"
-                  maxLength={5}
-                  required
-                  onChange={handleChange}
-                  className="border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-                />
-                <input
-                  name="cvv"
-                  value={formData.cvv}
-                  placeholder="CVV"
-                  maxLength={4}
-                  required
-                  onChange={handleChange}
-                  className="border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-                />
+                <div>
+                  <input
+                    name="expiryDate"
+                    value={formData.expiryDate}
+                    placeholder="MM/YY"
+                    maxLength={5}
+                    required
+                    onChange={handleChange}
+                    className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
+                  />
+                  {fieldErrors.expiryDate && <p className="input-error">{fieldErrors.expiryDate}</p>}
+                </div>
+                <div>
+                  <input
+                    name="cvv"
+                    value={formData.cvv}
+                    placeholder="CVV"
+                    maxLength={3}
+                    required
+                    onChange={handleChange}
+                    className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
+                  />
+                  {fieldErrors.cvv && <p className="input-error">{fieldErrors.cvv}</p>}
+                </div>
               </div>
             </div>
           </div>

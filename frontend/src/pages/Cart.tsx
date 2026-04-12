@@ -5,7 +5,7 @@ import { useCart } from "../context/CartContext";
 export default function Cart() {
   const { user } = useAuth();
   const { items, count, total, updateQty, removeItem } = useCart();
-  const navigate = useNavigate(); // ✅ EKLENDİ
+  const navigate = useNavigate();
 
   if (count === 0) {
     return (
@@ -149,7 +149,7 @@ export default function Cart() {
         <button
           disabled={!user}
           className="btn-primary w-full mt-4"
-          onClick={() => navigate("/checkout")} // ✅ ÇALIŞIR
+          onClick={() => navigate("/checkout")}
         >
           {user ? "Proceed to Payment" : "Sign in to Checkout"}
         </button>
