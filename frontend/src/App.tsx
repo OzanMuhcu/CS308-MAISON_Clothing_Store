@@ -4,16 +4,13 @@ import { CartProvider } from "./context/CartContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
-
+import Checkout from './pages/Checkout';
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Account from "./pages/Account";
-import Orders from "./pages/Orders";
 import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-import Payment from "./pages/Payment";
 
 export default function App() {
   return (
@@ -29,16 +26,26 @@ export default function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/products/:id" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
-                <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-                <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
-                <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
-                <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-                <Route path="*" element={
-                  <div className="text-center py-20">
-                    <h1 className="font-display text-4xl text-brand-900 mb-2">404</h1>
-                    <p className="text-sm text-brand-500">Page not found</p>
-                  </div>
-                } />
+                <Route path="/checkout" element={<Checkout />} />
+                 <Route
+                  path="/account"
+                  element={
+                    <ProtectedRoute>
+                      <Account />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="*"
+                  element={
+                    <div className="text-center py-20">
+                      <h1 className="font-display text-4xl text-brand-900 mb-2">
+                        404
+                      </h1>
+                      <p className="text-sm text-brand-500">Page not found</p>
+                    </div>
+                  }
+                />
               </Routes>
             </main>
             <Footer />
