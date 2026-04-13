@@ -18,8 +18,29 @@ import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
 import { Decimal } from "@prisma/client/runtime/library";
 
+const paymentSchema = z
+  .object({
+    cardNumber: z.string().regex(/^\d{16}$/, "Card number must be exactly 16 digits"),
+    expiryDate: z.string().regex(/^(\d{2})\/(\d{2})$/, "Expiry date must be in MM/YY format"),
+    cvv: z.string().regex(/^\d{3}$/, "CVV must be exactly 3 digits"),
+  })
+  .refine(({ expiryDate }) => {
+    const match = expiryDate.match(/^(\d{2})\/(\d{2})$/);
+    if (!match) return false;
+
+    const month = Number(match[1]);
+    const year = Number(`20${match[2]}`);
+    if (month < 1 || month > 12) return false;
+
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    return year > currentYear || (year === currentYear && month >= currentMonth);
+  }, "Card has expired");
+
 export const createOrderSchema = z.object({
   shippingAddress: z.string().min(5, "Shipping address is required (min 5 characters)"),
+  payment: paymentSchema,
 });
 
 export async function createOrder(userId: number, shippingAddress: string) {
