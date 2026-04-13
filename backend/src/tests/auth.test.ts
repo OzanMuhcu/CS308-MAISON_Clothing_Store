@@ -1,5 +1,4 @@
 import { registerSchema, loginSchema } from "../validators/auth";
-import { paymentSchema } from "../validators/payment";
 
 // ---- Zod validation tests ----
 
@@ -116,81 +115,5 @@ describe("JWT tokens", () => {
   test("expired token rejects", () => {
     const token = jwt.sign({ userId: 1 }, secret, { expiresIn: "0s" });
     expect(() => jwt.verify(token, secret)).toThrow();
-  });
-});
-
-// ---- Payment validation tests ----
-
-describe("paymentSchema", () => {
-  test("accepts valid card details", () => {
-    const result = paymentSchema.safeParse({
-      cardNumber: "4111111111111111",
-      expiry: "12/30",
-      cvv: "123",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  test("accepts card number with spaces", () => {
-    const result = paymentSchema.safeParse({
-      cardNumber: "4111 1111 1111 1111",
-      expiry: "12/30",
-      cvv: "123",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  test("rejects short card number", () => {
-    const result = paymentSchema.safeParse({
-      cardNumber: "411111111111",
-      expiry: "12/30",
-      cvv: "123",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects non-numeric card number", () => {
-    const result = paymentSchema.safeParse({
-      cardNumber: "4111abcd11111111",
-      expiry: "12/30",
-      cvv: "123",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects expired card", () => {
-    const result = paymentSchema.safeParse({
-      cardNumber: "4111111111111111",
-      expiry: "01/20",
-      cvv: "123",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects invalid month", () => {
-    const result = paymentSchema.safeParse({
-      cardNumber: "4111111111111111",
-      expiry: "13/30",
-      cvv: "123",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects wrong CVV length", () => {
-    const result = paymentSchema.safeParse({
-      cardNumber: "4111111111111111",
-      expiry: "12/30",
-      cvv: "12",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects non-numeric CVV", () => {
-    const result = paymentSchema.safeParse({
-      cardNumber: "4111111111111111",
-      expiry: "12/30",
-      cvv: "abc",
-    });
-    expect(result.success).toBe(false);
   });
 });

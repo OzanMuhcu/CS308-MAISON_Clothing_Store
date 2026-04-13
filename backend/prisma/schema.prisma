@@ -22,6 +22,7 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
 
   cartItems CartItem[]
+  orders    Order[]
 
   @@map("users")
 }
@@ -37,7 +38,8 @@ model Product {
   category    String   @default("")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  cartItems CartItem[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
 
   @@index([category])
   @@index([name])
@@ -55,4 +57,40 @@ model CartItem {
 
   @@unique([userId, productId])
   @@map("cart_items")
+}
+
+// --- ORDER (Sprint 3 — Checkout Flow) ---
+enum OrderStatus {
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  userId          Int         @map("user_id")
+  status          OrderStatus @default(processing)
+  shippingAddress String      @map("shipping_address")
+  totalAmount     Decimal     @db.Decimal(10, 2) @map("total_amount")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int     @map("order_id")
+  productId Int     @map("product_id")
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2) @map("unit_price")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
 }

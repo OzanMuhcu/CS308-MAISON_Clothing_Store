@@ -61,24 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await api.post("/auth/login", { email, password });
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
-    // CRITICAL ORDERING: sync guest cart BEFORE setting user state.
-    // CartContext watches `user` via useEffect and fetches the server cart
-    // the moment user changes. If we called setUser first, that fetch would
-    // race with the sync request and return an empty cart. By completing
-    // the sync first, the server already has the merged items when
-    // CartContext eventually fetches.
-    await syncGuestCart();
     setUser(data.user);
+    await syncGuestCart();
   };
 
   const register = async (name: string, email: string, password: string) => {
     const { data } = await api.post("/auth/register", { name, email, password });
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
-    // CRITICAL ORDERING: same as login — sync completes before user state
-    // triggers CartContext server-cart fetch. See comment in login().
-    await syncGuestCart();
     setUser(data.user);
+    await syncGuestCart();
   };
 
   const logout = () => {

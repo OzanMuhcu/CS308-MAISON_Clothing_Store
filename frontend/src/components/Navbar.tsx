@@ -1,5 +1,5 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 
@@ -7,43 +7,21 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const { count } = useCart();
   const location = useLocation();
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    if (menuOpen) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen]);
+  const isActive = (path: string) => location.pathname === path;
 
-  // Close dropdown on ESC
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    if (menuOpen) document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [menuOpen]);
-
-  // Close dropdown on route change
-  useEffect(() => { setMenuOpen(false); setMobileOpen(false); }, [location.pathname]);
-
-  const initials = user
-    ? user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
-    : "";
-
-  const handleLogout = () => {
-    setMenuOpen(false);
-    logout();
-    navigate("/");
-  };
+  const navLink = (to: string, label: string) => (
+    <Link
+      to={to}
+      className={`text-xs tracking-widest uppercase font-medium transition-colors duration-200 ${
+        isActive(to) ? "text-brand-900" : "text-brand-500 hover:text-brand-900"
+      }`}
+      onClick={() => setMobileOpen(false)}
+    >
+      {label}
+    </Link>
+  );
 
   return (
     <header className="sticky top-0 z-50 bg-brand-50/95 backdrop-blur-sm border-b border-brand-200">
@@ -54,78 +32,35 @@ export default function Navbar() {
             MAISON
           </Link>
 
-          {/* Center: Shop link (desktop) */}
-          <div className="hidden md:flex items-center">
-            <Link
-              to="/"
-              className={`text-xs tracking-widest uppercase font-medium transition-colors duration-200 ${
-                location.pathname === "/" ? "text-brand-900" : "text-brand-500 hover:text-brand-900"
-              }`}
-            >
-              Shop
-            </Link>
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-8">
+            {navLink("/", "Shop")}
+            {user && navLink("/account", "Account")}
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-5">
-            {/* Cart icon */}
-            <Link to="/cart" className="relative text-brand-600 hover:text-brand-900 transition-colors">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 01-8 0" />
-              </svg>
+          <div className="flex items-center gap-6">
+            {/* Cart */}
+            <Link
+              to="/cart"
+              className="relative text-xs tracking-widest uppercase font-medium text-brand-500 hover:text-brand-900 transition-colors"
+            >
+              Cart
               {count > 0 && (
-                <span className="absolute -top-1.5 -right-2 w-[18px] h-[18px] flex items-center justify-center bg-brand-900 text-brand-50 text-[10px] font-semibold rounded-full leading-none">
-                  {count > 99 ? "99" : count}
+                <span className="absolute -top-2 -right-4 w-5 h-5 flex items-center justify-center bg-brand-900 text-brand-50 text-[10px] font-semibold rounded-full">
+                  {count}
                 </span>
               )}
             </Link>
 
-            {/* Auth / Account */}
+            {/* Auth */}
             {user ? (
-              <div ref={dropdownRef} className="relative">
-                <button
-                  onClick={() => setMenuOpen((p) => !p)}
-                  className="flex items-center gap-2 focus:outline-none group"
-                  aria-expanded={menuOpen}
-                  aria-haspopup="true"
-                >
-                  <span className="w-8 h-8 rounded-full bg-brand-900 text-brand-50 flex items-center justify-center text-xs font-semibold leading-none select-none">
-                    {initials}
-                  </span>
-                  <svg
-                    className={`w-3.5 h-3.5 text-brand-500 transition-transform duration-200 ${menuOpen ? "rotate-180" : ""}`}
-                    fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-brand-200 shadow-lg py-1 z-50">
-                    <Link
-                      to="/account"
-                      className="block px-4 py-2.5 text-sm text-brand-700 hover:bg-brand-50 transition-colors"
-                    >
-                      Profile
-                    </Link>
-                    <Link
-                      to="/orders"
-                      className="block px-4 py-2.5 text-sm text-brand-700 hover:bg-brand-50 transition-colors"
-                    >
-                      Order History
-                    </Link>
-                    <div className="border-t border-brand-100 my-1" />
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2.5 text-sm text-brand-700 hover:bg-brand-50 transition-colors"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={logout}
+                className="text-xs tracking-widest uppercase font-medium text-brand-500 hover:text-brand-900 transition-colors"
+              >
+                Sign Out
+              </button>
             ) : (
               <Link
                 to="/login"
@@ -135,24 +70,24 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Mobile hamburger */}
+            {/* Mobile toggle */}
             <button
-              className="md:hidden flex flex-col gap-1.5 p-1"
+              className="md:hidden flex flex-col gap-1 p-1"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Menu"
             >
-              <span className={`block w-5 h-px bg-brand-900 transition-transform ${mobileOpen ? "rotate-45 translate-y-[4px]" : ""}`} />
+              <span className={`block w-5 h-px bg-brand-900 transition-transform ${mobileOpen ? "rotate-45 translate-y-[3px]" : ""}`} />
               <span className={`block w-5 h-px bg-brand-900 transition-opacity ${mobileOpen ? "opacity-0" : ""}`} />
-              <span className={`block w-5 h-px bg-brand-900 transition-transform ${mobileOpen ? "-rotate-45 -translate-y-[4px]" : ""}`} />
+              <span className={`block w-5 h-px bg-brand-900 transition-transform ${mobileOpen ? "-rotate-45 -translate-y-[3px]" : ""}`} />
             </button>
           </div>
         </div>
 
+        {/* Mobile menu */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-brand-200 py-4 flex flex-col gap-3">
-            <Link to="/" onClick={() => setMobileOpen(false)} className="text-sm text-brand-700 hover:text-brand-900">Shop</Link>
-            {user && <Link to="/account" onClick={() => setMobileOpen(false)} className="text-sm text-brand-700 hover:text-brand-900">Profile</Link>}
-            {user && <Link to="/orders" onClick={() => setMobileOpen(false)} className="text-sm text-brand-700 hover:text-brand-900">Order History</Link>}
+          <div className="md:hidden border-t border-brand-200 py-4 flex flex-col gap-4">
+            {navLink("/", "Shop")}
+            {user && navLink("/account", "Account")}
           </div>
         )}
       </nav>
