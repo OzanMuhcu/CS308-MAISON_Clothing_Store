@@ -4,7 +4,7 @@ import { CartProvider } from "./context/CartContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
-
+import Checkout from './pages/Checkout';
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -26,7 +26,8 @@ export default function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/products/:id" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
-                <Route
+                <Route path="/checkout" element={<Checkout />} />
+                 <Route
                   path="/account"
                   element={
                     <ProtectedRoute>

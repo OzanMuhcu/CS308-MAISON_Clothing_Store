@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 
 export default function Cart() {
   const { user } = useAuth();
   const { items, count, total, updateQty, removeItem } = useCart();
+  const navigate = useNavigate(); // ✅ EKLENDİ
 
   if (count === 0) {
     return (
@@ -28,7 +29,7 @@ export default function Cart() {
         Your Cart
       </h1>
 
-      {/* Header row */}
+      {/* Header */}
       <div className="hidden md:grid grid-cols-12 gap-4 pb-3 border-b border-brand-200 text-xs tracking-widest uppercase text-brand-400 font-medium">
         <div className="col-span-6">Product</div>
         <div className="col-span-2 text-center">Quantity</div>
@@ -36,16 +37,16 @@ export default function Cart() {
         <div className="col-span-2 text-right">Total</div>
       </div>
 
-      {/* Cart items */}
+      {/* Items */}
       <div className="divide-y divide-brand-100">
         {items.map((item) => (
           <div
             key={item.productId}
             className="grid grid-cols-12 gap-4 py-6 items-center"
           >
-            {/* Product info */}
+            {/* Product */}
             <div className="col-span-12 md:col-span-6 flex items-center gap-4">
-              <div className="w-20 h-24 bg-brand-100 flex-shrink-0 overflow-hidden">
+              <div className="w-20 h-24 bg-brand-100 overflow-hidden">
                 {item.imageUrl ? (
                   <img
                     src={item.imageUrl}
@@ -58,17 +59,22 @@ export default function Cart() {
                   </div>
                 )}
               </div>
+
               <div>
                 <Link
                   to={`/products/${item.productId}`}
-                  className="text-sm font-medium text-brand-900 hover:underline underline-offset-2"
+                  className="text-sm font-medium text-brand-900 hover:underline"
                 >
                   {item.name}
                 </Link>
-                <p className="text-xs text-brand-400 mt-1">SKU: {item.sku}</p>
+
+                <p className="text-xs text-brand-400 mt-1">
+                  SKU: {item.sku}
+                </p>
+
                 <button
                   onClick={() => removeItem(item.productId, item.itemId)}
-                  className="text-xs text-brand-400 hover:text-red-600 mt-2 transition-colors"
+                  className="text-xs text-brand-400 hover:text-red-600 mt-2"
                 >
                   Remove
                 </button>
@@ -76,7 +82,7 @@ export default function Cart() {
             </div>
 
             {/* Quantity */}
-            <div className="col-span-4 md:col-span-2 flex items-center justify-center gap-2">
+            <div className="col-span-4 md:col-span-2 flex justify-center gap-2">
               <button
                 onClick={() =>
                   updateQty(
@@ -85,13 +91,13 @@ export default function Cart() {
                     item.itemId
                   )
                 }
-                className="w-8 h-8 border border-brand-200 flex items-center justify-center text-brand-700 hover:bg-brand-100 transition-colors text-sm"
+                className="w-8 h-8 border flex items-center justify-center"
               >
-                &minus;
+                -
               </button>
-              <span className="w-8 text-center text-sm font-medium text-brand-900">
-                {item.quantity}
-              </span>
+
+              <span className="w-8 text-center">{item.quantity}</span>
+
               <button
                 onClick={() =>
                   updateQty(
@@ -100,19 +106,19 @@ export default function Cart() {
                     item.itemId
                   )
                 }
-                className="w-8 h-8 border border-brand-200 flex items-center justify-center text-brand-700 hover:bg-brand-100 transition-colors text-sm"
+                className="w-8 h-8 border flex items-center justify-center"
               >
                 +
               </button>
             </div>
 
-            {/* Unit price */}
-            <div className="col-span-4 md:col-span-2 text-right text-sm text-brand-700">
+            {/* Price */}
+            <div className="col-span-4 md:col-span-2 text-right">
               ${item.price.toFixed(2)}
             </div>
 
-            {/* Line total */}
-            <div className="col-span-4 md:col-span-2 text-right text-sm font-medium text-brand-900">
+            {/* Total */}
+            <div className="col-span-4 md:col-span-2 text-right font-medium">
               ${(item.price * item.quantity).toFixed(2)}
             </div>
           </div>
@@ -120,12 +126,12 @@ export default function Cart() {
       </div>
 
       {/* Summary */}
-      <div className="border-t border-brand-900 mt-6 pt-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-brand-500">
+      <div className="border-t mt-6 pt-6">
+        <div className="flex justify-between mb-2">
+          <span>
             {count} {count === 1 ? "item" : "items"}
           </span>
-          <span className="text-xl font-display font-semibold text-brand-900">
+          <span className="text-xl font-semibold">
             ${total.toFixed(2)}
           </span>
         </div>
@@ -133,34 +139,24 @@ export default function Cart() {
         {!user && (
           <p className="text-xs text-brand-400 mb-4">
             You need to{" "}
-            <Link to="/login" className="underline text-brand-700">
+            <Link to="/login" className="underline">
               sign in
             </Link>{" "}
-            before placing an order. Your cart will be preserved.
+            before placing an order.
           </p>
         )}
 
         <button
           disabled={!user}
           className="btn-primary w-full mt-4"
-          onClick={() =>
-            alert(
-              "Payment flow will be implemented in a future sprint."
-            )
-          }
+          onClick={() => navigate("/checkout")} // ✅ ÇALIŞIR
         >
           {user ? "Proceed to Payment" : "Sign in to Checkout"}
         </button>
 
-        {user && (
-          <p className="text-xs text-brand-400 text-center mt-3">
-            Payment processing coming in a future sprint.
-          </p>
-        )}
-
         <Link
           to="/"
-          className="block text-center text-xs tracking-widest uppercase text-brand-500 hover:text-brand-900 mt-4 transition-colors"
+          className="block text-center text-xs mt-4"
         >
           Continue Shopping
         </Link>
