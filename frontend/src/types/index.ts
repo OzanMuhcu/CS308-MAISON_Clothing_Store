@@ -4,6 +4,8 @@ export interface User {
   email: string;
   role: "customer" | "sales_manager" | "product_manager";
   createdAt: string;
+  /** Story 14: user's saved default delivery address; null if not yet set. */
+  defaultAddress?: OrderAddress | null;
 }
 
 export interface Product {
