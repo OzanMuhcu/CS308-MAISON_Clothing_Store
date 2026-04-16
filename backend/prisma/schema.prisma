@@ -22,12 +22,15 @@ enum OrderStatus {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  name         String
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role     @default(customer)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  role           Role     @default(customer)
+  /// Story 14: nullable JSON default delivery address snapshot.
+  /// Shape: { fullName, line1, line2?, city, postalCode, country }
+  defaultAddress Json?    @map("default_address")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   cartItems CartItem[]
   orders    Order[]
