@@ -1,83 +1,52 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { useCart } from "../context/CartContext";
 import type { Product } from "../types";
 
-interface Props {
-  product: Product;
-}
-
-export default function ProductCard({ product }: Props) {
+export default function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
+  const [adding, setAdding] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
   const outOfStock = product.stockQty <= 0;
 
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (outOfStock) return;
+    if (outOfStock || adding) return;
+    setAdding(true);
     try {
-      await addItem({
-        productId: product.id,
-        quantity: 1,
-        name: product.name,
-        price: product.price,
-        imageUrl: product.imageUrl,
-        stockQty: product.stockQty,
-        sku: product.sku,
-      });
-    } catch {
-      // Silently fail in card — user can retry
-    }
+      await addItem({ productId: product.id, quantity: 1, name: product.name, price: product.price, imageUrl: product.imageUrl, stockQty: product.stockQty, sku: product.sku });
+      setJustAdded(true);
+      setTimeout(() => setJustAdded(false), 1400);
+    } catch {} finally { setAdding(false); }
   };
 
   return (
     <Link to={`/products/${product.id}`} className="group block">
-      {/* Image */}
-      <div className="relative aspect-[3/4] overflow-hidden bg-brand-100 mb-4">
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          loading="lazy"
-        />
-
+      <div className="relative aspect-[3/4] overflow-hidden bg-brand-100 mb-3">
+        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
         {outOfStock && (
-          <div className="absolute inset-0 bg-brand-50/70 flex items-center justify-center">
-            <span className="text-xs tracking-widest uppercase font-medium text-brand-700 bg-white px-4 py-2">
-              Sold Out
-            </span>
+          <div className="absolute inset-0 bg-brand-50/60 flex items-center justify-center">
+            <span className="text-xs tracking-widest uppercase font-medium text-brand-700 bg-white/90 px-4 py-2">Sold Out</span>
           </div>
         )}
-
         {!outOfStock && (
-          <button
-            onClick={handleAdd}
-            className="absolute bottom-0 left-0 right-0 bg-brand-900/90 text-brand-50 text-xs
-                       tracking-widest uppercase font-medium py-3 text-center
-                       translate-y-full group-hover:translate-y-0 transition-transform duration-300"
-          >
-            Add to Cart
+          <button onClick={handleAdd} disabled={adding}
+            className="absolute bottom-0 left-0 right-0 bg-brand-900/90 text-brand-50 text-xs tracking-widest uppercase font-medium py-3 text-center translate-y-full group-hover:translate-y-0 transition-transform duration-300 disabled:opacity-60">
+            {justAdded ? "Added" : adding ? "Adding..." : "Add to Cart"}
           </button>
         )}
       </div>
-
-      {/* Info */}
-      <div className="space-y-1">
-        <p className="text-[11px] tracking-widest uppercase text-brand-400">
-          {product.category}
-        </p>
-        <h3 className="font-body text-sm font-medium text-brand-900 leading-snug">
-          {product.name}
-        </h3>
-        <div className="flex items-center gap-3">
-          <p className="font-body text-sm text-brand-700">
-            ${product.price.toFixed(2)}
-          </p>
-          {product.stockQty > 0 && product.stockQty <= 5 && (
-            <span className="text-[10px] tracking-wider uppercase text-amber-700">
-              Only {product.stockQty} left
-            </span>
-          )}
+      <div className="space-y-0.5">
+        <p className="text-[10px] tracking-widest uppercase text-brand-400">{product.category}</p>
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="font-body text-sm font-medium text-brand-900 leading-snug truncate">{product.name}</h3>
+          {outOfStock
+            ? <span className="flex-shrink-0 text-[10px] tracking-wide text-red-500 font-medium">Out of stock</span>
+            : <span className="flex-shrink-0 text-[10px] tracking-wide text-brand-400">Stock: {product.stockQty}</span>
+          }
         </div>
+        <p className="font-body text-sm text-brand-700">${product.price.toFixed(2)}</p>
       </div>
     </Link>
   );

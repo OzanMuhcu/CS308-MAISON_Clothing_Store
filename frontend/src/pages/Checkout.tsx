@@ -1,413 +1,306 @@
-/**
- * CHECKOUT PAGE — Sprint 3
- *
- * DEV-22: New Checkout page connected to Cart's "Proceed to Payment" button
- * DEV-23: Reuses current cart data to show order summary before payment
- * DEV-24: Cart logic stays intact — cart is cleared only after order confirmation
- */
-
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCart } from "../context/CartContext";
+import { useState, useEffect } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import api from "../services/api";
+import type { OrderAddress } from "../types";
 
-type FormErrors = {
-  fullName?: string;
-  address?: string;
-  city?: string;
-  zipCode?: string;
-  cardholderName?: string;
-  cardNumber?: string;
-  expiryDate?: string;
-  cvv?: string;
+const EMPTY_ADDRESS: OrderAddress = {
+  fullName: "",
+  line1: "",
+  line2: "",
+  city: "",
+  postalCode: "",
+  country: "",
 };
 
+type AddressMode = "saved" | "new";
+
 export default function Checkout() {
-  const { items, count, total, clearCart } = useCart();
   const { user } = useAuth();
+  const { items, count, total } = useCart();
   const navigate = useNavigate();
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
-  const [orderSuccess, setOrderSuccess] = useState<number | null>(null);
-
-  const [formData, setFormData] = useState({
-    fullName: user?.name || "",
-    address: "",
-    city: "",
-    zipCode: "",
-    cardholderName: user?.name || "",
-    cardNumber: "",
-    expiryDate: "",
-    cvv: "",
+  // The user's persisted default address, or null if none saved yet
+  const [savedAddress, setSavedAddress] = useState<OrderAddress | null>(null);
+  // Whether the user wants to use their saved address or enter a new one
+  const [mode, setMode] = useState<AddressMode>("saved");
+  // The one-time address form state
+  const [newAddress, setNewAddress] = useState<OrderAddress>({
+    ...EMPTY_ADDRESS,
+    fullName: user?.name ?? "",
   });
+  const [errors, setErrors] = useState<Partial<Record<keyof OrderAddress, string>>>({});
+  const [loadingAddress, setLoadingAddress] = useState(true);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    let nextValue = value;
+  if (!user) return <Navigate to="/login" replace />;
 
-    if (name === "cardNumber") {
-      nextValue = value.replace(/\D/g, "").slice(0, 16);
-    }
-
-    if (name === "expiryDate") {
-      const digits = value.replace(/\D/g, "").slice(0, 4);
-      nextValue = digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
-    }
-
-    if (name === "cvv") {
-      nextValue = value.replace(/\D/g, "").slice(0, 3);
-    }
-
-    setFormData({ ...formData, [name]: nextValue });
-    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
-  };
-
-  const validateForm = () => {
-    const errors: FormErrors = {};
-
-    if (!formData.fullName.trim() || formData.fullName.trim().length < 2) {
-      errors.fullName = "Please enter your full name.";
-    }
-
-    if (!formData.address.trim() || formData.address.trim().length < 5) {
-      errors.address = "Please enter a valid street address.";
-    }
-
-    if (!formData.city.trim() || formData.city.trim().length < 2) {
-      errors.city = "Please enter a valid city.";
-    }
-
-    if (!/^\d{4,10}$/.test(formData.zipCode.trim())) {
-      errors.zipCode = "ZIP code must be 4 to 10 digits.";
-    }
-
-    if (!/^[a-zA-Z\s'.-]{2,}$/.test(formData.cardholderName.trim())) {
-      errors.cardholderName = "Please enter the cardholder name exactly as on card.";
-    }
-
-    if (!/^\d{16}$/.test(formData.cardNumber)) {
-      errors.cardNumber = "Card number must be exactly 16 digits.";
-    }
-
-    const expiryMatch = formData.expiryDate.match(/^(\d{2})\/(\d{2})$/);
-    if (!expiryMatch) {
-      errors.expiryDate = "Expiry date must be in MM/YY format.";
-    } else {
-      const month = Number(expiryMatch[1]);
-      const year = Number(`20${expiryMatch[2]}`);
-      const now = new Date();
-      const currentMonth = now.getMonth() + 1;
-      const currentYear = now.getFullYear();
-
-      if (month < 1 || month > 12) {
-        errors.expiryDate = "Expiry month must be between 01 and 12.";
-      } else if (year < currentYear || (year === currentYear && month < currentMonth)) {
-        errors.expiryDate = "Card has expired. Please use another card.";
-      }
-    }
-
-    if (!/^\d{3}$/.test(formData.cvv)) {
-      errors.cvv = "CVV must be exactly 3 digits.";
-    }
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  // ─── Place Order ─────────────────────────────────────────
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!validateForm()) {
-      setError("Please review and fix the highlighted fields.");
-      return;
-    }
-
-    const fullAddress = `${formData.fullName}, ${formData.address}, ${formData.city} ${formData.zipCode}`.trim();
-
-    setIsSubmitting(true);
-    try {
-      // DEV-24: Cart stays intact until backend confirms order
-      const { data } = await api.post("/orders", {
-        shippingAddress: fullAddress,
-        payment: {
-          cardNumber: formData.cardNumber,
-          expiryDate: formData.expiryDate,
-          cvv: formData.cvv,
-        },
-      });
-
-      // Order confirmed — NOW clear the frontend cart
-      clearCart();
-      setOrderSuccess(data.id);
-    } catch (err: any) {
-      const msg = err.response?.data?.error || "Something went wrong. Please try again.";
-      setError(msg);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // ─── Guard: not logged in ──────────────────────────────
-  if (!user) {
+  if (count === 0) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-20 text-center">
+      <div className="max-w-3xl mx-auto px-6 py-20 text-center">
         <h1 className="font-display text-3xl font-semibold text-brand-900 mb-4">
           Checkout
         </h1>
-        <p className="text-sm text-brand-500 mb-6">
-          You need to sign in before placing an order.
-        </p>
-        <Link to="/login" className="btn-primary">
-          Sign In
-        </Link>
-      </div>
-    );
-  }
-
-  // ─── Order Success Screen ──────────────────────────────
-  if (orderSuccess) {
-    return (
-      <div className="max-w-4xl mx-auto px-6 py-20 text-center">
-        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">
-          ✓
-        </div>
-        <h1 className="font-display text-3xl font-semibold text-brand-900 mb-2">
-          Order Confirmed!
-        </h1>
-        <p className="text-sm text-brand-500 mb-1">
-          Your order <strong>#{orderSuccess}</strong> has been placed successfully.
-        </p>
-        <p className="text-sm text-brand-400 mb-8">
-          We'll send you an email when your items ship.
-        </p>
+        <p className="text-sm text-brand-500 mb-6">Your cart is empty.</p>
         <Link to="/" className="btn-primary">
-          Continue Shopping
+          Browse Collection
         </Link>
       </div>
     );
   }
 
-  // ─── Guard: empty cart ─────────────────────────────────
-  if (items.length === 0) {
-    return (
-      <div className="max-w-4xl mx-auto px-6 py-20 text-center">
-        <h1 className="font-display text-3xl font-semibold text-brand-900 mb-4">
-          Checkout
-        </h1>
-        <p className="text-sm text-brand-500 mb-6">
-          Your cart is empty. Add some items first.
-        </p>
-        <Link to="/" className="btn-primary">
-          Browse Products
-        </Link>
-      </div>
-    );
-  }
+  // Fetch the user's saved default address once on mount
+  useEffect(() => {
+    api
+      .get("/users/me/address")
+      .then(({ data }) => {
+        if (data.defaultAddress) {
+          setSavedAddress(data.defaultAddress);
+          setMode("saved");
+        } else {
+          setMode("new");
+        }
+      })
+      .catch(() => {
+        // No address saved yet or network error — fall through to new address form
+        setMode("new");
+      })
+      .finally(() => setLoadingAddress(false));
+  }, []);
 
-  // ─── Checkout Form + Order Summary ─────────────────────
+  /**
+   * The address that will actually be stored in sessionStorage and sent to
+   * POST /orders.  When mode is "saved" we use the fetched default; when
+   * "new" we use the form state.
+   */
+  const activeAddress: OrderAddress =
+    mode === "saved" && savedAddress ? savedAddress : newAddress;
+
+  const validate = (): boolean => {
+    // If using the saved address it was already validated on the Account page
+    if (mode === "saved" && savedAddress) return true;
+
+    const e: Partial<Record<keyof OrderAddress, string>> = {};
+    if (!newAddress.fullName.trim())    e.fullName    = "Required";
+    if (!newAddress.line1.trim())       e.line1       = "Required";
+    if (!newAddress.city.trim())        e.city        = "Required";
+    if (!newAddress.postalCode.trim())  e.postalCode  = "Required";
+    if (!newAddress.country.trim())     e.country     = "Required";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleContinue = () => {
+    if (!validate()) return;
+    // Store the chosen address for Payment.tsx to read
+    sessionStorage.setItem("checkoutAddress", JSON.stringify(activeAddress));
+    navigate("/payment");
+  };
+
+  const field = (
+    key: keyof OrderAddress,
+    label: string,
+    placeholder: string,
+    optional = false,
+  ) => (
+    <div>
+      <label className="input-label">
+        {label}
+        {optional && <span className="text-brand-400 ml-1">(optional)</span>}
+      </label>
+      <input
+        type="text"
+        value={newAddress[key] ?? ""}
+        onChange={(e) =>
+          setNewAddress((prev) => ({ ...prev, [key]: e.target.value }))
+        }
+        placeholder={placeholder}
+        className="input-field"
+      />
+      {errors[key] && <p className="input-error">{errors[key]}</p>}
+    </div>
+  );
+
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
-      <h1 className="font-display text-3xl font-semibold text-brand-900 mb-10">
-        Checkout
-      </h1>
+    <div className="max-w-3xl mx-auto px-6 py-10">
+      {/* Breadcrumb */}
+      <nav className="mb-8 flex items-center gap-2 text-[11px] tracking-widest uppercase font-medium">
+        <Link
+          to="/cart"
+          className="text-brand-400 hover:text-brand-900 transition-colors"
+        >
+          Cart
+        </Link>
+        <Chev />
+        <span className="text-brand-900">Checkout</span>
+        <Chev />
+        <span className="text-brand-300">Payment</span>
+      </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Left: Shipping & Payment Form */}
-        <form onSubmit={handleSubmit} noValidate className="space-y-8">
-          {/* Shipping Section */}
-          <div>
-            <h2 className="text-xs tracking-widest uppercase text-brand-400 font-medium mb-4">
-              Shipping Information
-            </h2>
-            <div className="space-y-4">
-              <input
-                name="fullName"
-                value={formData.fullName}
-                placeholder="Full Name"
-                required
-                onChange={handleChange}
-                className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-              />
-              {fieldErrors.fullName && <p className="input-error">{fieldErrors.fullName}</p>}
-              <input
-                name="address"
-                value={formData.address}
-                placeholder="Street Address"
-                required
-                onChange={handleChange}
-                className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-              />
-              {fieldErrors.address && <p className="input-error">{fieldErrors.address}</p>}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <input
-                    name="city"
-                    value={formData.city}
-                    placeholder="City"
-                    required
-                    onChange={handleChange}
-                    className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-                  />
-                  {fieldErrors.city && <p className="input-error">{fieldErrors.city}</p>}
-                </div>
-                <div>
-                  <input
-                    name="zipCode"
-                    value={formData.zipCode}
-                    placeholder="ZIP Code"
-                    required
-                    onChange={handleChange}
-                    className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-                  />
-                  {fieldErrors.zipCode && <p className="input-error">{fieldErrors.zipCode}</p>}
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
+        {/* Left: Address selection */}
+        <div className="lg:col-span-3">
+          <h1 className="font-display text-2xl font-semibold text-brand-900 mb-6">
+            Delivery Address
+          </h1>
 
-          {/* Payment Section */}
-          <div>
-            <h2 className="text-xs tracking-widest uppercase text-brand-400 font-medium mb-4">
-              Payment Details
-            </h2>
-            <div className="space-y-4">
-              <input
-                name="cardholderName"
-                value={formData.cardholderName}
-                placeholder="Cardholder Name"
-                required
-                onChange={handleChange}
-                className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-              />
-              {fieldErrors.cardholderName && <p className="input-error">{fieldErrors.cardholderName}</p>}
-              <input
-                name="cardNumber"
-                value={formData.cardNumber}
-                placeholder="Card Number"
-                maxLength={16}
-                required
-                onChange={handleChange}
-                className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-              />
-              {fieldErrors.cardNumber && <p className="input-error">{fieldErrors.cardNumber}</p>}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <input
-                    name="expiryDate"
-                    value={formData.expiryDate}
-                    placeholder="MM/YY"
-                    maxLength={5}
-                    required
-                    onChange={handleChange}
-                    className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-                  />
-                  {fieldErrors.expiryDate && <p className="input-error">{fieldErrors.expiryDate}</p>}
-                </div>
-                <div>
-                  <input
-                    name="cvv"
-                    value={formData.cvv}
-                    placeholder="CVV"
-                    maxLength={3}
-                    required
-                    onChange={handleChange}
-                    className="w-full border-b border-brand-200 py-3 outline-none text-sm focus:border-brand-900 transition-colors bg-transparent"
-                  />
-                  {fieldErrors.cvv && <p className="input-error">{fieldErrors.cvv}</p>}
-                </div>
-              </div>
-            </div>
-          </div>
+          {loadingAddress ? (
+            <p className="text-sm text-brand-400">Loading your saved address…</p>
+          ) : (
+            <>
+              {/*
+               * Mode selector — only rendered when the user already has a
+               * saved default address.  When there is no saved address we go
+               * straight to the one-time form.
+               */}
+              {savedAddress && (
+                <div className="mb-6 border border-brand-200 divide-y divide-brand-100">
+                  {/* Option A: use saved default address */}
+                  <label className="flex items-start gap-3 px-4 py-4 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="addressMode"
+                      checked={mode === "saved"}
+                      onChange={() => {
+                        setMode("saved");
+                        setErrors({});
+                      }}
+                      className="mt-0.5 accent-brand-900"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-brand-900">
+                        Use saved address
+                      </p>
+                      <p className="text-xs text-brand-500 mt-0.5">
+                        {savedAddress.fullName} &middot; {savedAddress.line1}
+                        {savedAddress.line2 ? `, ${savedAddress.line2}` : ""},&nbsp;
+                        {savedAddress.city} {savedAddress.postalCode},{" "}
+                        {savedAddress.country}
+                      </p>
+                    </div>
+                  </label>
 
-          {/* Error */}
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded">
-              {error}
-            </p>
+                  {/* Option B: enter a different address for this order only */}
+                  <label className="flex items-start gap-3 px-4 py-4 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="addressMode"
+                      checked={mode === "new"}
+                      onChange={() => setMode("new")}
+                      className="mt-0.5 accent-brand-900"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-brand-900">
+                        Use a different address
+                      </p>
+                      <p className="text-xs text-brand-500 mt-0.5">
+                        Enter a one-time delivery address for this order only
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* One-time address form — shown when no saved address exists OR user chose "new" */}
+              {(!savedAddress || mode === "new") && (
+                <div className="space-y-4">
+                  {field("fullName",   "Full Name",      "John Smith")}
+                  {field("line1",      "Address Line 1", "123 Main Street")}
+                  {field("line2",      "Address Line 2", "Apt 4B", true)}
+                  <div className="grid grid-cols-2 gap-4">
+                    {field("city",       "City",           "Istanbul")}
+                    {field("postalCode", "Postal Code",    "34000")}
+                  </div>
+                  {field("country",    "Country",        "Turkey")}
+                </div>
+              )}
+            </>
           )}
+        </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-brand-900 text-white py-4 text-sm tracking-wide uppercase hover:bg-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Processing..." : `Place Order — $${total.toFixed(2)}`}
-          </button>
-
-          {/* Back to Cart (DEV-24: preserves cart) */}
-          <Link
-            to="/cart"
-            className="block text-center text-xs text-brand-400 hover:text-brand-600 mt-2"
-          >
-            ← Back to Cart
-          </Link>
-        </form>
-
-        {/* Right: Order Summary (DEV-23 — reuses cart data) */}
-        <div className="bg-brand-50 p-6 h-fit rounded lg:sticky lg:top-24">
-          <h2 className="text-xs tracking-widest uppercase text-brand-400 font-medium mb-6">
+        {/* Right: Order summary */}
+        <div className="lg:col-span-2">
+          <h2 className="text-xs tracking-[0.15em] uppercase text-brand-500 font-medium mb-4">
             Order Summary
           </h2>
-
-          <div className="space-y-4">
-            {items.map((item) => (
-              <div key={item.productId} className="flex gap-4">
-                {/* Product thumbnail */}
-                <div className="w-16 h-20 bg-brand-100 overflow-hidden flex-shrink-0">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-brand-300 text-xs">
-                      No img
-                    </div>
-                  )}
-                </div>
-
-                {/* Product info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-brand-900 truncate">
-                    {item.name}
+          <div className="border border-brand-200">
+            <div className="divide-y divide-brand-100 max-h-64 overflow-y-auto">
+              {items.map((item) => (
+                <div
+                  key={item.productId}
+                  className="flex items-center gap-3 px-4 py-3"
+                >
+                  <div className="w-10 h-12 bg-brand-100 flex-shrink-0 overflow-hidden">
+                    {item.imageUrl && (
+                      <img
+                        src={item.imageUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-brand-900 truncate">
+                      {item.name}
+                    </p>
+                    <p className="text-[10px] text-brand-400">
+                      Qty {item.quantity}
+                    </p>
+                  </div>
+                  <p className="text-xs font-medium text-brand-900">
+                    ${(item.price * item.quantity).toFixed(2)}
                   </p>
-                  <p className="text-xs text-brand-400 mt-0.5">
-                    Qty: {item.quantity}
-                  </p>
                 </div>
-
-                {/* Line total */}
-                <p className="text-sm font-medium text-brand-900 flex-shrink-0">
-                  ${(item.price * item.quantity).toFixed(2)}
-                </p>
+              ))}
+            </div>
+            <div className="border-t border-brand-200 px-4 py-3 space-y-2">
+              <div className="flex justify-between text-xs text-brand-500">
+                <span>Subtotal ({count})</span>
+                <span className="text-brand-900">${total.toFixed(2)}</span>
               </div>
-            ))}
+              <div className="flex justify-between text-xs text-brand-500">
+                <span>Shipping</span>
+                <span>Free</span>
+              </div>
+              <div className="border-t border-brand-200 pt-2 flex justify-between">
+                <span className="text-xs tracking-wider uppercase font-medium text-brand-900">
+                  Total
+                </span>
+                <span className="text-base font-display font-semibold text-brand-900">
+                  ${total.toFixed(2)}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Totals */}
-          <div className="border-t border-brand-200 mt-6 pt-4 space-y-2">
-            <div className="flex justify-between text-sm text-brand-500">
-              <span>Subtotal ({count} {count === 1 ? "item" : "items"})</span>
-              <span>${total.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-brand-500">
-              <span>Shipping</span>
-              <span>Free</span>
-            </div>
-            <div className="flex justify-between text-base font-semibold text-brand-900 pt-2 border-t border-brand-200">
-              <span>Total</span>
-              <span>${total.toFixed(2)}</span>
-            </div>
-          </div>
+          <button
+            className="btn-primary w-full mt-5"
+            onClick={handleContinue}
+          >
+            Continue to Payment
+          </button>
+          <Link
+            to="/cart"
+            className="block text-center text-xs tracking-widest uppercase text-brand-500 hover:text-brand-900 mt-3 transition-colors"
+          >
+            Back to Cart
+          </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+function Chev() {
+  return (
+    <svg
+      className="w-3 h-3 text-brand-300"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth="2"
+      stroke="currentColor"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
   );
 }
