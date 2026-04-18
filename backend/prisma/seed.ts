@@ -35,7 +35,7 @@ async function main() {
       { name: "Quilted Field Jacket", description: "Diamond-quilted jacket with corduroy collar and brass snaps. Insulated, no bulk.", price: 175, stockQty: 3, sku: "JC-004", imageUrl: u("1591047139829-d91aecb6caea"), category: "Jackets & Coats" },
       { name: "Leather Biker Jacket", description: "Full-grain lamb leather, asymmetric zip. Satin-lined with zippered cuffs.", price: 395, stockQty: 8, sku: "JC-005", imageUrl: u("1521223890158-f9f7c3d5d504"), category: "Jackets & Coats" },
       { name: "Cotton Harrington Jacket", description: "Zip-front Harrington in washed cotton twill. Tartan-lined, elasticated cuffs.", price: 95, stockQty: 0, sku: "JC-006", imageUrl: u("1551028719-00167b16eac5"), category: "Jackets & Coats" },
-      { name: "Waterproof Parka", description: "Seam-sealed technical parka with adjustable hood and fishtail hem.", price: 245, stockQty: 14, sku: "JC-007", imageUrl: u("1544923246-77307dd270b9"), category: "Jackets & Coats" },
+      { name: "Waterproof Parka", description: "Seam-sealed technical parka with adjustable hood and fishtail hem.", price: 245, stockQty: 14, sku: "JC-007", imageUrl: u("1591047139829-d91aecb6caea"), category: "Jackets & Coats" },
 
       // ── Shirts (7) ──
       { name: "Slim Fit Oxford Shirt", description: "Crisp cotton oxford, button-down collar. Garment-washed for softness.", price: 68, stockQty: 40, sku: "SH-001", imageUrl: u("1596755094514-f87e34085b2c"), category: "Shirts" },
@@ -44,7 +44,7 @@ async function main() {
       { name: "Chambray Work Shirt", description: "Indigo-dyed chambray, double chest pockets, reinforced yoke.", price: 65, stockQty: 5, sku: "SH-004", imageUrl: u("1589310243389-96a5483213a8"), category: "Shirts" },
       { name: "Striped Poplin Dress Shirt", description: "Fine cotton poplin, French placket, spread collar. Tailored fit.", price: 82, stockQty: 16, sku: "SH-005", imageUrl: u("1563630423918-b58f07336ac9"), category: "Shirts" },
       { name: "Cotton Pique Polo", description: "Classic polo in heavyweight cotton pique. Mother-of-pearl buttons.", price: 55, stockQty: 0, sku: "SH-006", imageUrl: u("1586363104862-3a5e2ab60d99"), category: "Shirts" },
-      { name: "Band Collar Linen Shirt", description: "Mandarin collar, garment-dyed linen. Minimalist with chest pocket.", price: 74, stockQty: 2, sku: "SH-007", imageUrl: u("1598033129183-c4f50c736c10"), category: "Shirts" },
+      { name: "Band Collar Linen Shirt", description: "Mandarin collar, garment-dyed linen. Minimalist with chest pocket.", price: 74, stockQty: 2, sku: "SH-007", imageUrl: u("1602810318383-e386cc2a3ccf"), category: "Shirts" },
 
       // ── Trousers (7) ──
       { name: "Relaxed Linen Trousers", description: "Pure-linen with relaxed drape. Elasticated drawstring waistband.", price: 95, stockQty: 25, sku: "TR-001", imageUrl: u("1624378439575-d8705ad7ae80"), category: "Trousers" },
@@ -57,7 +57,7 @@ async function main() {
 
       // ── Knitwear (7) ──
       { name: "Cashmere Crew Sweater", description: "Pure Mongolian cashmere, classic crew-neck. Ribbed cuffs and hem.", price: 195, stockQty: 10, sku: "KN-001", imageUrl: u("1638643391904-9b551ba91eaa"), category: "Knitwear" },
-      { name: "Merino V-Neck Sweater", description: "Fine-gauge merino wool V-neck. Layer over shirts or wear alone.", price: 110, stockQty: 24, sku: "KN-002", imageUrl: u("1614975059251-992f11792571"), category: "Knitwear" },
+      { name: "Merino V-Neck Sweater", description: "Fine-gauge merino wool V-neck. Layer over shirts or wear alone.", price: 110, stockQty: 24, sku: "KN-002", imageUrl: u("1638643391904-9b551ba91eaa"), category: "Knitwear" },
       { name: "Cable Knit Cardigan", description: "Heritage cable-knit in wool-cotton blend. Horn buttons, shawl collar.", price: 145, stockQty: 4, sku: "KN-003", imageUrl: u("1620799140408-edc6dcb6d633"), category: "Knitwear" },
       { name: "Cotton Rollneck", description: "Heavyweight cotton jersey rollneck. Clean, minimal layering piece.", price: 65, stockQty: 32, sku: "KN-004", imageUrl: u("1578587018452-892bacefd3f2"), category: "Knitwear" },
       { name: "Lambswool Fair Isle Sweater", description: "Traditional Fair Isle pattern in soft lambswool. Ribbed trim.", price: 125, stockQty: 0, sku: "KN-005", imageUrl: u("1583743814966-8936f5b7be1a"), category: "Knitwear" },
@@ -68,10 +68,10 @@ async function main() {
       { name: "Leather Chelsea Boots", description: "Full-grain calf leather, Goodyear-welted sole. Elastic side panels.", price: 245, stockQty: 15, sku: "FW-001", imageUrl: u("1638247025967-b4e38f787b76"), category: "Footwear" },
       { name: "Suede Desert Boots", description: "Unlined suede on crepe rubber sole. Warm sand colour.", price: 160, stockQty: 20, sku: "FW-002", imageUrl: u("1608256246200-53e635b5b65f"), category: "Footwear" },
       { name: "White Leather Sneakers", description: "Minimalist court sneaker in full-grain white leather. Cup-sole.", price: 130, stockQty: 30, sku: "FW-003", imageUrl: u("1600269452121-4f2416e55c28"), category: "Footwear" },
-      { name: "Canvas Espadrilles", description: "Handmade jute-soled espadrilles in washed cotton canvas.", price: 48, stockQty: 1, sku: "FW-004", imageUrl: u("1622434641406-a158123450f9"), category: "Footwear" },
+      { name: "Canvas Espadrilles", description: "Handmade jute-soled espadrilles in washed cotton canvas.", price: 48, stockQty: 1, sku: "FW-004", imageUrl: u("1460353581641-37baddab0fa2"), category: "Footwear" },
       { name: "Leather Penny Loafers", description: "Hand-sewn moccasin in polished calf leather. Blake-stitched sole.", price: 195, stockQty: 11, sku: "FW-005", imageUrl: u("1614252235316-8c857d38b5f4"), category: "Footwear" },
       { name: "Suede Low-Top Sneakers", description: "Italian suede upper with vulcanised rubber sole. Tonal laces.", price: 115, stockQty: 0, sku: "FW-006", imageUrl: u("1525966222134-fcfa99b8ae77"), category: "Footwear" },
-      { name: "Leather Lace-Up Boots", description: "Oil-tanned leather with Vibram lug sole. Speed hooks at top.", price: 220, stockQty: 9, sku: "FW-007", imageUrl: u("1605812860427-4024d9178bc7"), category: "Footwear" },
+      { name: "Leather Lace-Up Boots", description: "Oil-tanned leather with Vibram lug sole. Speed hooks at top.", price: 220, stockQty: 9, sku: "FW-007", imageUrl: u("1638247025967-b4e38f787b76"), category: "Footwear" },
 
       // ── Accessories (7) ──
       { name: "Waxed Canvas Tote", description: "Waxed cotton canvas, vegetable-tanned leather handles, brass hardware.", price: 45, stockQty: 55, sku: "AC-001", imageUrl: u("1553062407-98eeb64c6a62"), category: "Accessories" },
@@ -79,7 +79,7 @@ async function main() {
       { name: "Wool Scarf", description: "Brushed lambswool scarf in classic herringbone weave.", price: 38, stockQty: 50, sku: "AC-003", imageUrl: u("1520903920243-00d872a2d1c9"), category: "Accessories" },
       { name: "Leather Card Holder", description: "Slim vegetable-tanned leather card case. Three slots.", price: 28, stockQty: 0, sku: "AC-004", imageUrl: u("1627123424574-724758594e93"), category: "Accessories" },
       { name: "Silk Pocket Square", description: "Hand-rolled Italian silk with geometric print.", price: 32, stockQty: 25, sku: "AC-005", imageUrl: u("1598532163257-ae3c6b2524b6"), category: "Accessories" },
-      { name: "Canvas Weekender Bag", description: "Roomy cotton canvas duffle with leather base and shoulder strap.", price: 85, stockQty: 14, sku: "AC-006", imageUrl: u("1553062407-98eeb64c6a62"), category: "Accessories" },
+      { name: "Canvas Weekender Bag", description: "Roomy cotton canvas duffle with leather base and shoulder strap.", price: 85, stockQty: 14, sku: "AC-006", imageUrl: u("1542291026-7eec264c27ff"), category: "Accessories" },
       { name: "Knitted Beanie", description: "Ribbed merino wool beanie with a turn-up brim. One size.", price: 25, stockQty: 60, sku: "AC-007", imageUrl: u("1576871337622-98d48d1cf531"), category: "Accessories" },
     ],
   });

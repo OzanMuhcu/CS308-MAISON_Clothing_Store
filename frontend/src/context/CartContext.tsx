@@ -23,6 +23,8 @@ interface CartContextValue {
   updateQty: (productId: number, quantity: number, itemId?: number) => Promise<void>;
   /** Remove item */
   removeItem: (productId: number, itemId?: number) => Promise<void>;
+  /** Clear cart state after successful checkout */
+  clearCart: () => void;
   loading: boolean;
 }
 
@@ -178,9 +180,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const clearCart = () => {
+    setServerItems([]);
+    setGuestItems([]);
+    localStorage.removeItem(GUEST_KEY);
+  };
+
   return (
     <CartContext.Provider
-      value={{ items, count, total, addItem, updateQty, removeItem, loading }}
+      value={{ items, count, total, addItem, updateQty, removeItem, clearCart, loading }}
     >
       {children}
     </CartContext.Provider>

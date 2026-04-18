@@ -7,7 +7,9 @@ export default function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
   const [adding, setAdding] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const outOfStock = product.stockQty <= 0;
+  const lowStock = product.stockQty > 0 && product.stockQty < 5;
 
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -24,7 +26,19 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <Link to={`/products/${product.id}`} className="group block">
       <div className="relative aspect-[3/4] overflow-hidden bg-brand-100 mb-3">
-        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+        {!imageError && product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            loading="lazy"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-brand-400 text-xs tracking-wide uppercase">
+            Image unavailable
+          </div>
+        )}
         {outOfStock && (
           <div className="absolute inset-0 bg-brand-50/60 flex items-center justify-center">
             <span className="text-xs tracking-widest uppercase font-medium text-brand-700 bg-white/90 px-4 py-2">Sold Out</span>
@@ -43,7 +57,9 @@ export default function ProductCard({ product }: { product: Product }) {
           <h3 className="font-body text-sm font-medium text-brand-900 leading-snug truncate">{product.name}</h3>
           {outOfStock
             ? <span className="flex-shrink-0 text-[10px] tracking-wide text-red-500 font-medium">Out of stock</span>
-            : <span className="flex-shrink-0 text-[10px] tracking-wide text-brand-400">Stock: {product.stockQty}</span>
+            : lowStock
+              ? <span className="flex-shrink-0 text-[10px] tracking-wide text-amber-600 font-medium">Only a few left</span>
+              : null
           }
         </div>
         <p className="font-body text-sm text-brand-700">${product.price.toFixed(2)}</p>
