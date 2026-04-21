@@ -64,6 +64,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     saveGuest(guestItems);
   }, [guestItems]);
 
+  // When user logs in, clear guest items from state since they've been
+  // synced to the server by AuthContext.syncGuestCart(). Without this,
+  // stale guest items would reappear if the user later logs out.
+  useEffect(() => {
+    if (user) {
+      setGuestItems([]);
+    }
+  }, [user]);
+
   // Fetch server cart when user logs in
   const fetchServerCart = useCallback(async () => {
     if (!user) { setServerItems([]); return; }

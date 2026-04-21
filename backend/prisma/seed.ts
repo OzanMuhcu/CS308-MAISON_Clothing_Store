@@ -3,141 +3,90 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// Stable Unsplash photo IDs — each verified to exist and match its product type.
+// Format: https://images.unsplash.com/photo-{ID}?w=600&h=800&fit=crop&q=80
+const u = (id: string) => `https://images.unsplash.com/photo-${id}?w=600&h=800&fit=crop&q=80`;
+
 async function main() {
   console.log("Clearing existing data...");
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
   await prisma.cartItem.deleteMany();
   await prisma.product.deleteMany();
   await prisma.user.deleteMany();
 
-  console.log("Creating demo users...");
+  console.log("Creating users...");
   const hash = await bcrypt.hash("password123", 12);
-
   await prisma.user.createMany({
     data: [
-      { name: "Demo Customer", email: "customer@demo.com", passwordHash: hash, role: "customer" },
-      { name: "Sales Manager", email: "sales@demo.com", passwordHash: hash, role: "sales_manager" },
-      { name: "Product Manager", email: "product@demo.com", passwordHash: hash, role: "product_manager" },
+      { name: "Polat Canpolat", email: "customer@demo.com", passwordHash: hash, role: "customer" },
+      { name: "Sarah Keller", email: "sales@demo.com", passwordHash: hash, role: "sales_manager" },
+      { name: "Peter Durand", email: "product@demo.com", passwordHash: hash, role: "product_manager" },
     ],
   });
 
-  console.log("Creating products...");
+  console.log("Creating 42 products (6 categories × 7)...");
   await prisma.product.createMany({
     data: [
-      {
-        name: "Merino Wool Overcoat",
-        description: "A timeless double-breasted overcoat crafted from Italian merino wool. Fully lined with a tailored silhouette that pairs effortlessly with both formal and casual looks.",
-        price: 289.00,
-        stockQty: 12,
-        sku: "OC-MRN-001",
-        imageUrl: "https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=600&h=800&fit=crop",
-        category: "Outerwear",
-      },
-      {
-        name: "Slim Fit Oxford Shirt",
-        description: "Crisp cotton oxford with a clean button-down collar. Garment-washed for a soft hand feel. A wardrobe essential that transitions from office to weekend.",
-        price: 68.00,
-        stockQty: 45,
-        sku: "SH-OXF-002",
-        imageUrl: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600&h=800&fit=crop",
-        category: "Shirts",
-      },
-      {
-        name: "Relaxed Linen Trousers",
-        description: "Breathable pure-linen trousers with a relaxed drape. Elasticated waistband with drawstring for comfort. Ideal for warmer months.",
-        price: 95.00,
-        stockQty: 30,
-        sku: "TR-LIN-003",
-        imageUrl: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop",
-        category: "Trousers",
-      },
-      {
-        name: "Cashmere Crew Sweater",
-        description: "Pure Mongolian cashmere knitted into a classic crew-neck silhouette. Ribbed cuffs and hem. The definitive luxury layering piece.",
-        price: 195.00,
-        stockQty: 18,
-        sku: "KN-CSH-004",
-        imageUrl: "https://images.unsplash.com/photo-1638643391904-9b551ba91eaa?w=600&h=800&fit=crop",
-        category: "Knitwear",
-      },
-      {
-        name: "Denim Trucker Jacket",
-        description: "Heavyweight selvedge denim jacket with copper rivets and tonal stitching. Raw unwashed finish that develops character over time.",
-        price: 120.00,
-        stockQty: 25,
-        sku: "OC-DNM-005",
-        imageUrl: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=600&h=800&fit=crop",
-        category: "Outerwear",
-      },
-      {
-        name: "Tailored Chino Trousers",
-        description: "Structured cotton twill chinos with a tailored fit through the thigh and a clean taper to the ankle. Versatile enough for any occasion.",
-        price: 85.00,
-        stockQty: 40,
-        sku: "TR-CHN-006",
-        imageUrl: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=600&h=800&fit=crop",
-        category: "Trousers",
-      },
-      {
-        name: "Cotton Pique Polo",
-        description: "Classic polo shirt in heavyweight cotton pique. Mother-of-pearl buttons and ribbed collar that holds its shape wash after wash.",
-        price: 55.00,
-        stockQty: 0,
-        sku: "SH-POL-007",
-        imageUrl: "https://images.unsplash.com/photo-1586363104862-3a5e2ab60d99?w=600&h=800&fit=crop",
-        category: "Shirts",
-      },
-      {
-        name: "Leather Chelsea Boots",
-        description: "Full-grain calf leather with a Goodyear-welted sole. Elastic side panels for easy on-off. Built to age beautifully over years of wear.",
-        price: 245.00,
-        stockQty: 15,
-        sku: "FW-CHB-008",
-        imageUrl: "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=600&h=800&fit=crop",
-        category: "Footwear",
-      },
-      {
-        name: "Wool Blend Blazer",
-        description: "Half-lined blazer in a refined wool-cotton blend. Notch lapel, patch pockets, and a natural shoulder for a modern yet timeless look.",
-        price: 210.00,
-        stockQty: 20,
-        sku: "OC-BLZ-009",
-        imageUrl: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&h=800&fit=crop",
-        category: "Outerwear",
-      },
-      {
-        name: "Brushed Flannel Shirt",
-        description: "Double-brushed cotton flannel with a soft, substantial hand. Subtle windowpane check pattern. An essential for layered autumn looks.",
-        price: 72.00,
-        stockQty: 35,
-        sku: "SH-FLN-010",
-        imageUrl: "https://images.unsplash.com/photo-1604006852748-903fccbc4019?w=600&h=800&fit=crop",
-        category: "Shirts",
-      },
-      {
-        name: "Stretch Slim Jeans",
-        description: "Japanese selvedge denim with 2% elastane for comfort. Slim through the leg with a clean dark indigo wash. Chain-stitched hem.",
-        price: 89.00,
-        stockQty: 50,
-        sku: "TR-JNS-011",
-        imageUrl: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=800&fit=crop",
-        category: "Trousers",
-      },
-      {
-        name: "Waxed Canvas Tote",
-        description: "Durable waxed cotton canvas with vegetable-tanned leather handles. Brass hardware throughout. Spacious interior with internal zip pocket.",
-        price: 45.00,
-        stockQty: 60,
-        sku: "AC-TOT-012",
-        imageUrl: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&h=800&fit=crop",
-        category: "Accessories",
-      },
+      // ── Jackets & Coats (7) ──
+      { name: "Merino Wool Overcoat", description: "Double-breasted overcoat in Italian merino wool. Fully lined, tailored silhouette.", price: 289, stockQty: 12, sku: "JC-001", imageUrl: u("1539533018447-63fcce2678e3"), category: "Jackets & Coats" },
+      { name: "Denim Trucker Jacket", description: "Heavyweight selvedge denim with copper rivets. Raw finish that develops character.", price: 120, stockQty: 22, sku: "JC-002", imageUrl: u("1576995853123-5a10305d93c0"), category: "Jackets & Coats" },
+      { name: "Wool Blend Blazer", description: "Half-lined blazer in wool-cotton blend. Notch lapel, patch pockets, natural shoulder.", price: 210, stockQty: 15, sku: "JC-003", imageUrl: u("1507679799987-c73779587ccf"), category: "Jackets & Coats" },
+      { name: "Quilted Field Jacket", description: "Diamond-quilted jacket with corduroy collar and brass snaps. Insulated, no bulk.", price: 175, stockQty: 3, sku: "JC-004", imageUrl: u("1591047139829-d91aecb6caea"), category: "Jackets & Coats" },
+      { name: "Leather Biker Jacket", description: "Full-grain lamb leather, asymmetric zip. Satin-lined with zippered cuffs.", price: 395, stockQty: 8, sku: "JC-005", imageUrl: u("1521223890158-f9f7c3d5d504"), category: "Jackets & Coats" },
+      { name: "Cotton Harrington Jacket", description: "Zip-front Harrington in washed cotton twill. Tartan-lined, elasticated cuffs.", price: 95, stockQty: 0, sku: "JC-006", imageUrl: u("1551028719-00167b16eac5"), category: "Jackets & Coats" },
+      { name: "Waterproof Parka", description: "Seam-sealed technical parka with adjustable hood and fishtail hem.", price: 245, stockQty: 14, sku: "JC-007", imageUrl: u("1544923246-77307dd270b9"), category: "Jackets & Coats" },
+
+      // ── Shirts (7) ──
+      { name: "Slim Fit Oxford Shirt", description: "Crisp cotton oxford, button-down collar. Garment-washed for softness.", price: 68, stockQty: 40, sku: "SH-001", imageUrl: u("1596755094514-f87e34085b2c"), category: "Shirts" },
+      { name: "Brushed Flannel Shirt", description: "Double-brushed cotton flannel with subtle check. Essential for autumn layering.", price: 72, stockQty: 28, sku: "SH-002", imageUrl: u("1604006852748-903fccbc4019"), category: "Shirts" },
+      { name: "Linen Camp Collar Shirt", description: "Relaxed camp collar in pure European linen. Boxy fit, warm-weather ease.", price: 78, stockQty: 18, sku: "SH-003", imageUrl: u("1602810318383-e386cc2a3ccf"), category: "Shirts" },
+      { name: "Chambray Work Shirt", description: "Indigo-dyed chambray, double chest pockets, reinforced yoke.", price: 65, stockQty: 5, sku: "SH-004", imageUrl: u("1589310243389-96a5483213a8"), category: "Shirts" },
+      { name: "Striped Poplin Dress Shirt", description: "Fine cotton poplin, French placket, spread collar. Tailored fit.", price: 82, stockQty: 16, sku: "SH-005", imageUrl: u("1563630423918-b58f07336ac9"), category: "Shirts" },
+      { name: "Cotton Pique Polo", description: "Classic polo in heavyweight cotton pique. Mother-of-pearl buttons.", price: 55, stockQty: 0, sku: "SH-006", imageUrl: u("1586363104862-3a5e2ab60d99"), category: "Shirts" },
+      { name: "Band Collar Linen Shirt", description: "Mandarin collar, garment-dyed linen. Minimalist with chest pocket.", price: 74, stockQty: 2, sku: "SH-007", imageUrl: u("1598033129183-c4f50c736c10"), category: "Shirts" },
+
+      // ── Trousers (7) ──
+      { name: "Relaxed Linen Trousers", description: "Pure-linen with relaxed drape. Elasticated drawstring waistband.", price: 95, stockQty: 25, sku: "TR-001", imageUrl: u("1624378439575-d8705ad7ae80"), category: "Trousers" },
+      { name: "Tailored Chino Trousers", description: "Structured cotton twill chinos, tailored fit, clean ankle taper.", price: 85, stockQty: 35, sku: "TR-002", imageUrl: u("1473966968600-fa801b869a1a"), category: "Trousers" },
+      { name: "Stretch Slim Jeans", description: "Japanese selvedge denim with 2% elastane. Dark indigo wash.", price: 89, stockQty: 45, sku: "TR-003", imageUrl: u("1542272604-787c3835535d"), category: "Trousers" },
+      { name: "Corduroy Wide-Leg Trousers", description: "8-wale cotton corduroy, generous wide-leg. Double pleats, high rise.", price: 98, stockQty: 12, sku: "TR-004", imageUrl: u("1594938298603-c8148c4dae35"), category: "Trousers" },
+      { name: "Wool Dress Trousers", description: "Tropical-weight wool, flat front, permanent crease. Half-lined.", price: 135, stockQty: 0, sku: "TR-005", imageUrl: u("1506629082955-511b1aa562c8"), category: "Trousers" },
+      { name: "Cargo Utility Pants", description: "Relaxed cotton ripstop with six pockets. Washed for softness.", price: 79, stockQty: 20, sku: "TR-006", imageUrl: u("1517438476312-10d79c077509"), category: "Trousers" },
+      { name: "Drawstring Jogger Trousers", description: "French terry cotton joggers with tapered leg. Ribbed ankle cuffs.", price: 62, stockQty: 30, sku: "TR-007", imageUrl: u("1552902865-b72c031ac5ea"), category: "Trousers" },
+
+      // ── Knitwear (7) ──
+      { name: "Cashmere Crew Sweater", description: "Pure Mongolian cashmere, classic crew-neck. Ribbed cuffs and hem.", price: 195, stockQty: 10, sku: "KN-001", imageUrl: u("1638643391904-9b551ba91eaa"), category: "Knitwear" },
+      { name: "Merino V-Neck Sweater", description: "Fine-gauge merino wool V-neck. Layer over shirts or wear alone.", price: 110, stockQty: 24, sku: "KN-002", imageUrl: u("1614975059251-992f11792571"), category: "Knitwear" },
+      { name: "Cable Knit Cardigan", description: "Heritage cable-knit in wool-cotton blend. Horn buttons, shawl collar.", price: 145, stockQty: 4, sku: "KN-003", imageUrl: u("1620799140408-edc6dcb6d633"), category: "Knitwear" },
+      { name: "Cotton Rollneck", description: "Heavyweight cotton jersey rollneck. Clean, minimal layering piece.", price: 65, stockQty: 32, sku: "KN-004", imageUrl: u("1578587018452-892bacefd3f2"), category: "Knitwear" },
+      { name: "Lambswool Fair Isle Sweater", description: "Traditional Fair Isle pattern in soft lambswool. Ribbed trim.", price: 125, stockQty: 0, sku: "KN-005", imageUrl: u("1583743814966-8936f5b7be1a"), category: "Knitwear" },
+      { name: "Half-Zip Fleece Pullover", description: "Recycled polyester fleece with contrast half-zip. Chest pocket.", price: 88, stockQty: 18, sku: "KN-006", imageUrl: u("1556821840-3a63f95609a7"), category: "Knitwear" },
+      { name: "Waffle Knit Henley", description: "Textured waffle-knit cotton with three-button henley placket.", price: 52, stockQty: 40, sku: "KN-007", imageUrl: u("1618354691373-d851c5c3a990"), category: "Knitwear" },
+
+      // ── Footwear (7) ──
+      { name: "Leather Chelsea Boots", description: "Full-grain calf leather, Goodyear-welted sole. Elastic side panels.", price: 245, stockQty: 15, sku: "FW-001", imageUrl: u("1638247025967-b4e38f787b76"), category: "Footwear" },
+      { name: "Suede Desert Boots", description: "Unlined suede on crepe rubber sole. Warm sand colour.", price: 160, stockQty: 20, sku: "FW-002", imageUrl: u("1608256246200-53e635b5b65f"), category: "Footwear" },
+      { name: "White Leather Sneakers", description: "Minimalist court sneaker in full-grain white leather. Cup-sole.", price: 130, stockQty: 30, sku: "FW-003", imageUrl: u("1600269452121-4f2416e55c28"), category: "Footwear" },
+      { name: "Canvas Espadrilles", description: "Handmade jute-soled espadrilles in washed cotton canvas.", price: 48, stockQty: 1, sku: "FW-004", imageUrl: u("1622434641406-a158123450f9"), category: "Footwear" },
+      { name: "Leather Penny Loafers", description: "Hand-sewn moccasin in polished calf leather. Blake-stitched sole.", price: 195, stockQty: 11, sku: "FW-005", imageUrl: u("1614252235316-8c857d38b5f4"), category: "Footwear" },
+      { name: "Suede Low-Top Sneakers", description: "Italian suede upper with vulcanised rubber sole. Tonal laces.", price: 115, stockQty: 0, sku: "FW-006", imageUrl: u("1525966222134-fcfa99b8ae77"), category: "Footwear" },
+      { name: "Leather Lace-Up Boots", description: "Oil-tanned leather with Vibram lug sole. Speed hooks at top.", price: 220, stockQty: 9, sku: "FW-007", imageUrl: u("1605812860427-4024d9178bc7"), category: "Footwear" },
+
+      // ── Accessories (7) ──
+      { name: "Waxed Canvas Tote", description: "Waxed cotton canvas, vegetable-tanned leather handles, brass hardware.", price: 45, stockQty: 55, sku: "AC-001", imageUrl: u("1553062407-98eeb64c6a62"), category: "Accessories" },
+      { name: "Leather Belt", description: "Full-grain bridle leather, solid brass buckle. 35mm width.", price: 55, stockQty: 42, sku: "AC-002", imageUrl: u("1624222247344-550fb60583dc"), category: "Accessories" },
+      { name: "Wool Scarf", description: "Brushed lambswool scarf in classic herringbone weave.", price: 38, stockQty: 50, sku: "AC-003", imageUrl: u("1520903920243-00d872a2d1c9"), category: "Accessories" },
+      { name: "Leather Card Holder", description: "Slim vegetable-tanned leather card case. Three slots.", price: 28, stockQty: 0, sku: "AC-004", imageUrl: u("1627123424574-724758594e93"), category: "Accessories" },
+      { name: "Silk Pocket Square", description: "Hand-rolled Italian silk with geometric print.", price: 32, stockQty: 25, sku: "AC-005", imageUrl: u("1598532163257-ae3c6b2524b6"), category: "Accessories" },
+      { name: "Canvas Weekender Bag", description: "Roomy cotton canvas duffle with leather base and shoulder strap.", price: 85, stockQty: 14, sku: "AC-006", imageUrl: u("1553062407-98eeb64c6a62"), category: "Accessories" },
+      { name: "Knitted Beanie", description: "Ribbed merino wool beanie with a turn-up brim. One size.", price: 25, stockQty: 60, sku: "AC-007", imageUrl: u("1576871337622-98d48d1cf531"), category: "Accessories" },
     ],
   });
 
   const counts = await Promise.all([prisma.user.count(), prisma.product.count()]);
   console.log(`Seeded ${counts[0]} users, ${counts[1]} products.`);
-  console.log("");
-  console.log("Demo accounts (password: password123):");
+  console.log("\nAccounts (password: password123):");
   console.log("  customer@demo.com   (customer)");
   console.log("  sales@demo.com      (sales_manager)");
   console.log("  product@demo.com    (product_manager)");

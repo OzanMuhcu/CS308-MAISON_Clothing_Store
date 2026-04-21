@@ -13,15 +13,27 @@ enum Role {
   product_manager
 }
 
+enum OrderStatus {
+  confirmed
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
 model User {
-  id           Int      @id @default(autoincrement())
-  name         String
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role     @default(customer)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  role           Role     @default(customer)
+  /// Story 14: nullable JSON default delivery address snapshot.
+  /// Shape: { fullName, line1, line2?, city, postalCode, country }
+  defaultAddress Json?    @map("default_address")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   cartItems CartItem[]
+  orders    Order[]
 
   @@map("users")
 }
@@ -37,7 +49,8 @@ model Product {
   category    String   @default("")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  cartItems CartItem[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
 
   @@index([category])
   @@index([name])
@@ -55,4 +68,39 @@ model CartItem {
 
   @@unique([userId, productId])
   @@map("cart_items")
+}
+
+/// Story 16: Order stores snapshots so history is immutable.
+/// address is a JSON blob ready for Story 14 expansion:
+/// { fullName, line1, line2?, city, postalCode, country }
+model Order {
+  id          Int         @id @default(autoincrement())
+  userId      Int         @map("user_id")
+  totalAmount Decimal     @db.Decimal(10, 2) @map("total_amount")
+  status      OrderStatus @default(confirmed)
+  address     Json        @default("{}")
+  invoiceNo   String?     @unique @map("invoice_no")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+  @@map("orders")
+}
+
+/// Snapshot of product info at time of purchase — immune to later edits.
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int     @map("order_id")
+  productId   Int     @map("product_id")
+  productName String  @map("product_name")
+  unitPrice   Decimal @db.Decimal(10, 2) @map("unit_price")
+  quantity    Int
+  lineTotal   Decimal @db.Decimal(10, 2) @map("line_total")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
 }

@@ -4,6 +4,8 @@ export interface User {
   email: string;
   role: "customer" | "sales_manager" | "product_manager";
   createdAt: string;
+  /** Story 14: user's saved default delivery address; null if not yet set. */
+  defaultAddress?: OrderAddress | null;
 }
 
 export interface Product {
@@ -24,7 +26,6 @@ export interface CartItem {
   product: Product;
 }
 
-/** Guest cart item stored in localStorage before login */
 export interface GuestCartItem {
   productId: number;
   quantity: number;
@@ -38,4 +39,33 @@ export interface GuestCartItem {
 export interface AuthResponse {
   user: User;
   token: string;
+}
+
+// Story 16
+export interface OrderItem {
+  id: number;
+  productId: number;
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface OrderAddress {
+  fullName: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  postalCode: string;
+  country: string;
+}
+
+export interface Order {
+  id: number;
+  totalAmount: number;
+  status: string;
+  address: OrderAddress;
+  invoiceNo: string | null;
+  createdAt: string;
+  items: OrderItem[];
 }
