@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import type { OrderAddress } from "../types";
+import type { OrderAddress, SavedAddress } from "../types";
 
-const EMPTY_ADDRESS: OrderAddress = {
+type AddressForm = OrderAddress & { label: string };
+
+const EMPTY_ADDRESS: AddressForm = {
+  label: "",
   fullName: "",
   line1: "",
   line2: "",
@@ -14,11 +17,13 @@ const EMPTY_ADDRESS: OrderAddress = {
 
 export default function Account() {
   const { user } = useAuth();
-  const [address, setAddress] = useState<OrderAddress>(EMPTY_ADDRESS);
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | "new">("new");
+  const [address, setAddress] = useState<AddressForm>(EMPTY_ADDRESS);
   const [loadingAddress, setLoadingAddress] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
-  const [errors, setErrors] = useState<Partial<Record<keyof OrderAddress, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof AddressForm, string>>>({});
 
   if (!user) return null;
 
@@ -38,10 +43,16 @@ export default function Account() {
   // Load the user's saved default address on mount
   useEffect(() => {
     api
-      .get("/users/me/address")
+      .get("/users/me/addresses")
       .then(({ data }) => {
-        if (data.defaultAddress) {
-          setAddress({ ...EMPTY_ADDRESS, ...data.defaultAddress });
+        const loaded: SavedAddress[] = data.addresses || [];
+        setAddresses(loaded);
+        if (loaded.length > 0) {
+          setSelectedAddressId(loaded[0].id);
+          setAddress({ ...loaded[0] });
+        } else {
+          setSelectedAddressId("new");
+          setAddress(EMPTY_ADDRESS);
         }
       })
       .catch(() => {
@@ -51,11 +62,20 @@ export default function Account() {
   }, []);
 
   const validate = (): boolean => {
-    const e: Partial<Record<keyof OrderAddress, string>> = {};
+    const e: Partial<Record<keyof AddressForm, string>> = {};
+    if (!address.label.trim()) e.label = "Address label is required";
+    const duplicate = addresses.some(
+      (a) =>
+        a.label.toLowerCase() === address.label.trim().toLowerCase() &&
+        (selectedAddressId === "new" || a.id !== selectedAddressId)
+    );
+    if (duplicate) e.label = "Address label must be unique.";
     if (!address.fullName.trim()) e.fullName = "Required";
     if (!address.line1.trim())    e.line1    = "Required";
     if (!address.city.trim())     e.city     = "Required";
-    if (!address.postalCode.trim()) e.postalCode = "Required";
+    if (!/^\d{5}$/.test(address.postalCode.trim())) {
+      e.postalCode = "Postal code must be exactly 5 digits.";
+    }
     if (!address.country.trim())  e.country  = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -67,7 +87,31 @@ export default function Account() {
     setSaving(true);
     setStatus("idle");
     try {
-      await api.put("/users/me/address", address);
+      const payload = {
+        label: address.label.trim(),
+        fullName: address.fullName,
+        line1: address.line1,
+        line2: address.line2 || "",
+        city: address.city,
+        postalCode: address.postalCode,
+        country: address.country,
+      };
+
+      const { data } =
+        selectedAddressId === "new"
+          ? await api.post("/users/me/addresses", payload)
+          : await api.put(`/users/me/addresses/${selectedAddressId}`, payload);
+
+      const saved: SavedAddress = data.address;
+      setAddresses((prev) => {
+        const idx = prev.findIndex((a) => a.id === saved.id);
+        if (idx === -1) return [saved, ...prev];
+        const next = [...prev];
+        next[idx] = saved;
+        return next;
+      });
+      setSelectedAddressId(saved.id);
+      setAddress({ ...saved });
       setStatus("saved");
       setTimeout(() => setStatus("idle"), 2500);
     } catch {
@@ -78,7 +122,7 @@ export default function Account() {
   };
 
   const field = (
-    key: keyof OrderAddress,
+    key: keyof AddressForm,
     label: string,
     placeholder: string,
     optional = false,
@@ -91,11 +135,21 @@ export default function Account() {
       <input
         type="text"
         value={address[key] ?? ""}
-        onChange={(e) =>
-          setAddress((prev) => ({ ...prev, [key]: e.target.value }))
-        }
+        onChange={(e) => {
+          const nextValue =
+            key === "postalCode"
+              ? e.target.value.replace(/\D/g, "").slice(0, 5)
+              : e.target.value;
+          setAddress((prev) => ({ ...prev, [key]: nextValue }));
+        }}
         placeholder={placeholder}
-        className="input-field"
+        className={
+          key === "postalCode"
+            ? "input-field font-mono tracking-[0.15em]"
+            : "input-field"
+        }
+        inputMode={key === "postalCode" ? "numeric" : undefined}
+        maxLength={key === "postalCode" ? 5 : undefined}
       />
       {errors[key] && <p className="input-error">{errors[key]}</p>}
     </div>
@@ -152,18 +206,52 @@ export default function Account() {
             className="border border-brand-200 p-6 space-y-4"
             noValidate
           >
+            <div>
+              <label className="input-label">Saved Addresses</label>
+              <select
+                value={selectedAddressId}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "new") {
+                    setSelectedAddressId("new");
+                    setAddress(EMPTY_ADDRESS);
+                    setErrors({});
+                    return;
+                  }
+                  const id = Number(value);
+                  const selected = addresses.find((a) => a.id === id);
+                  if (!selected) return;
+                  setSelectedAddressId(id);
+                  setAddress({ ...selected });
+                  setErrors({});
+                }}
+                className="input-field"
+              >
+                {addresses.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+                <option value="new">+ Add New Address</option>
+              </select>
+              <p className="text-xs text-brand-400 mt-2">
+                {selectedAddressId === "new" ? "Creating a new saved address" : "Updating selected saved address"}
+              </p>
+            </div>
+
+            {field("label", "Address Label", "Home 1")}
             {field("fullName",   "Full Name",       "John Smith")}
             {field("line1",      "Address Line 1",  "123 Main Street")}
             {field("line2",      "Address Line 2",  "Apt 4B", true)}
             <div className="grid grid-cols-2 gap-4">
               {field("city",       "City",            "Istanbul")}
-              {field("postalCode", "Postal Code",     "34000")}
+              {field("postalCode", "Postal Code",     "00000")}
             </div>
             {field("country",    "Country",         "Turkey")}
 
             <div className="flex items-center gap-4 pt-1">
               <button type="submit" disabled={saving} className="btn-primary">
-                {saving ? "Saving…" : "Save Address"}
+                {saving ? "Saving..." : selectedAddressId === "new" ? "Save" : "Update"}
               </button>
               {status === "saved" && (
                 <span className="text-sm text-green-600">

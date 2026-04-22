@@ -5,37 +5,73 @@ import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import api from "../services/api";
 
-interface PaymentForm { cardNumber: string; expiry: string; cvv: string; }
+type FormValues = {
+  cardholderFullName: string;
+  cardNumber: string;
+  expiry: string;
+  cvv: string;
+};
+
+interface PaymentForm {
+  cardholderFullName: string;
+  cardNumber: string;
+  expiry: string;
+  cvv: string;
+}
 
 export default function Payment() {
   const { user } = useAuth();
-  const { count, total } = useCart();
-  const [serverError, setServerError] = useState("");
+  const { count, total, clearCart } = useCart();
+
+  const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [orderResult, setOrderResult] = useState<{
-    orderId: number; invoiceNo: string; total: number; emailPreviewUrl?: string;
-  } | null>(null);
+  orderId: number;
+  invoiceNo: string;
+  total?: number;
+  emailPreviewUrl?: string | null;
+} | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<PaymentForm>();
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>();
 
   if (!user) return <Navigate to="/login" replace />;
 
-  // Read address that Checkout page stored
+  // Read address that Checkout selected
   const storedAddr = sessionStorage.getItem("checkoutAddress");
   if (count === 0 && !orderResult) return <Navigate to="/cart" replace />;
   if (!storedAddr && !orderResult) return <Navigate to="/checkout" replace />;
 
   function validateCard(v: string): string | true {
-    return /^\d{16}$/.test(v.replace(/\s/g, "")) ? true : "Card number must be exactly 16 digits";
+    return /^\d{16}$/.test(v.replace(/\s/g, ""))
+      ? true
+      : "Card number must be exactly 16 digits";
   }
+
+  function validateCardholder(v: string): string | true {
+    return /^[A-Za-z\s'.-]{2,}$/.test(v.trim())
+      ? true
+      : "Cardholder full name is required";
+  }
+
   function validateExpiry(v: string): string | true {
     if (!/^\d{2}\/\d{2}$/.test(v)) return "Use MM/YY format";
+
     const [mm, yy] = v.split("/").map(Number);
     if (mm < 1 || mm > 12) return "Invalid month";
+
     const now = new Date();
-    if (2000 + yy < now.getFullYear() || (2000 + yy === now.getFullYear() && mm < now.getMonth() + 1)) return "Card has expired";
+    const fullYear = 2000 + yy;
+
+    if (
+      fullYear < now.getFullYear() ||
+      (fullYear === now.getFullYear() && mm < now.getMonth() + 1)
+    ) {
+      return "Card has expired";
+    }
+
     return true;
   }
+
   function validateCvv(v: string): string | true {
     return /^\d{3}$/.test(v) ? true : "CVV must be exactly 3 digits";
   }
@@ -48,6 +84,9 @@ export default function Payment() {
     if (v.length > 2) v = v.slice(0, 2) + "/" + v.slice(2);
     e.target.value = v;
   }
+  function fmtCvv(e: React.ChangeEvent<HTMLInputElement>) {
+    e.target.value = e.target.value.replace(/\D/g, "").slice(0, 3);
+  }
 
   const onSubmit = async (data: PaymentForm) => {
     setServerError("");
@@ -55,6 +94,7 @@ export default function Payment() {
     try {
       // Step 1: Validate payment
       const payRes = await api.post("/payment/validate", {
+        cardholderFullName: data.cardholderFullName,
         cardNumber: data.cardNumber.replace(/\s/g, ""),
         expiry: data.expiry,
         cvv: data.cvv,
@@ -66,6 +106,7 @@ export default function Payment() {
       const orderRes = await api.post("/orders", { address });
 
       sessionStorage.removeItem("checkoutAddress");
+      clearCart();
       setOrderResult({
         orderId: orderRes.data.order.id,
         invoiceNo: orderRes.data.order.invoiceNo,
@@ -84,6 +125,7 @@ export default function Payment() {
     api.get(`/orders/${orderResult.orderId}/invoice`, { responseType: "blob" }).then((r) => {
       const url = URL.createObjectURL(r.data);
       const a = document.createElement("a");
+      clearCart();
       a.href = url;
       a.download = `${orderResult.invoiceNo}.pdf`;
       a.click();
@@ -102,7 +144,7 @@ export default function Payment() {
         </div>
         <h1 className="font-display text-3xl font-semibold text-brand-900 mb-3">Order Confirmed</h1>
         <p className="text-sm text-brand-500 mb-1">
-          Your order of <span className="font-medium text-brand-900">${orderResult.total.toFixed(2)}</span> has been placed successfully.
+          Your order of <span className="font-medium text-brand-900">${orderResult.total?.toFixed(2)}</span> has been placed successfully.
         </p>
         <p className="text-xs text-brand-400 mb-6">Invoice: {orderResult.invoiceNo}</p>
 
@@ -145,6 +187,22 @@ export default function Payment() {
           {serverError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">{serverError}</div>}
 
           <div>
+            <label htmlFor="cardholderFullName" className="input-label">Cardholder Full Name</label>
+            <input
+              id="cardholderFullName"
+              type="text"
+              autoComplete="cc-name"
+              placeholder="John Smith"
+              className="input-field"
+              {...register("cardholderFullName", {
+                required: "Cardholder full name is required",
+                validate: validateCardholder,
+              })}
+            />
+            {errors.cardholderFullName && <p className="input-error">{errors.cardholderFullName.message}</p>}
+          </div>
+
+          <div>
             <label htmlFor="cardNumber" className="input-label">Card Number</label>
             <input id="cardNumber" type="text" inputMode="numeric" autoComplete="cc-number" placeholder="0000 0000 0000 0000"
               className="input-field font-mono tracking-[0.15em]"
@@ -164,7 +222,7 @@ export default function Payment() {
               <label htmlFor="cvv" className="input-label">Security Code</label>
               <input id="cvv" type="text" inputMode="numeric" autoComplete="cc-csc" placeholder="000" maxLength={3}
                 className="input-field font-mono"
-                {...register("cvv", { required: "Required", validate: validateCvv })} />
+                {...register("cvv", { required: "Required", validate: validateCvv, onChange: fmtCvv })} />
               {errors.cvv && <p className="input-error">{errors.cvv.message}</p>}
             </div>
           </div>

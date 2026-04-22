@@ -60,6 +60,13 @@ export interface OrderAddress {
   country: string;
 }
 
+export interface SavedAddress extends OrderAddress {
+  id: number;
+  label: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   id: number;
   totalAmount: number;

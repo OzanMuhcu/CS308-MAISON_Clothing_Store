@@ -14,7 +14,7 @@ const addressSchema = z.object({
   line1: z.string().min(1, "Address line 1 is required"),
   line2: z.string().optional().default(""),
   city: z.string().min(1, "City is required"),
-  postalCode: z.string().min(1, "Postal code is required"),
+  postalCode: z.string().regex(/^\d{5}$/, "Postal code must be exactly 5 digits"),
   country: z.string().min(1, "Country is required"),
 });
 

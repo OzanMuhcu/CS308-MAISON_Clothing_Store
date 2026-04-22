@@ -10,8 +10,10 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
+    setImageError(false);
     api
       .get(`/products/${id}`)
       .then((r) => setProduct(r.data))
@@ -58,6 +60,7 @@ export default function ProductDetail() {
   }
 
   const outOfStock = product.stockQty <= 0;
+  const lowStock = product.stockQty > 0 && product.stockQty < 5;
 
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
@@ -75,11 +78,18 @@ export default function ProductDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
         {/* Image */}
         <div className="aspect-[3/4] bg-brand-100 overflow-hidden">
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
+          {!imageError && product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-brand-400 text-xs tracking-wide uppercase">
+              Image unavailable
+            </div>
+          )}
         </div>
 
         {/* Details */}
@@ -107,7 +117,7 @@ export default function ProductDetail() {
             <div className="flex justify-between py-3 border-b border-brand-100 text-sm">
               <span className="text-brand-500">Stock</span>
               <span className={`font-medium ${outOfStock ? "text-red-600" : "text-brand-900"}`}>
-                {outOfStock ? "Out of Stock" : `${product.stockQty} available`}
+                {outOfStock ? "Out of Stock" : lowStock ? "Only a few left" : "In stock"}
               </span>
             </div>
             <div className="flex justify-between py-3 text-sm">

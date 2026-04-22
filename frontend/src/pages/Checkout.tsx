@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import api from "../services/api";
-import type { OrderAddress } from "../types";
+import type { OrderAddress, SavedAddress } from "../types";
 
 const EMPTY_ADDRESS: OrderAddress = {
   fullName: "",
@@ -21,8 +21,9 @@ export default function Checkout() {
   const { items, count, total } = useCart();
   const navigate = useNavigate();
 
-  // The user's persisted default address, or null if none saved yet
-  const [savedAddress, setSavedAddress] = useState<OrderAddress | null>(null);
+  // User's persisted saved addresses
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<number | null>(null);
   // Whether the user wants to use their saved address or enter a new one
   const [mode, setMode] = useState<AddressMode>("saved");
   // The one-time address form state
@@ -52,10 +53,12 @@ export default function Checkout() {
   // Fetch the user's saved default address once on mount
   useEffect(() => {
     api
-      .get("/users/me/address")
+      .get("/users/me/addresses")
       .then(({ data }) => {
-        if (data.defaultAddress) {
-          setSavedAddress(data.defaultAddress);
+        const addresses: SavedAddress[] = data.addresses || [];
+        setSavedAddresses(addresses);
+        if (addresses.length > 0) {
+          setSelectedSavedAddressId(addresses[0].id);
           setMode("saved");
         } else {
           setMode("new");
@@ -74,17 +77,25 @@ export default function Checkout() {
    * "new" we use the form state.
    */
   const activeAddress: OrderAddress =
-    mode === "saved" && savedAddress ? savedAddress : newAddress;
+    mode === "saved" && selectedSavedAddressId
+      ? savedAddresses.find((a) => a.id === selectedSavedAddressId) || newAddress
+      : newAddress;
+
+  const selectedSavedAddress = selectedSavedAddressId
+    ? savedAddresses.find((a) => a.id === selectedSavedAddressId) || null
+    : null;
 
   const validate = (): boolean => {
     // If using the saved address it was already validated on the Account page
-    if (mode === "saved" && savedAddress) return true;
+    if (mode === "saved" && selectedSavedAddressId) return true;
 
     const e: Partial<Record<keyof OrderAddress, string>> = {};
     if (!newAddress.fullName.trim())    e.fullName    = "Required";
     if (!newAddress.line1.trim())       e.line1       = "Required";
     if (!newAddress.city.trim())        e.city        = "Required";
-    if (!newAddress.postalCode.trim())  e.postalCode  = "Required";
+    if (!/^\d{5}$/.test(newAddress.postalCode.trim())) {
+      e.postalCode = "Postal code must be exactly 5 digits.";
+    }
     if (!newAddress.country.trim())     e.country     = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -111,11 +122,21 @@ export default function Checkout() {
       <input
         type="text"
         value={newAddress[key] ?? ""}
-        onChange={(e) =>
-          setNewAddress((prev) => ({ ...prev, [key]: e.target.value }))
-        }
+        onChange={(e) => {
+          const nextValue =
+            key === "postalCode"
+              ? e.target.value.replace(/\D/g, "").slice(0, 5)
+              : e.target.value;
+          setNewAddress((prev) => ({ ...prev, [key]: nextValue }));
+        }}
         placeholder={placeholder}
-        className="input-field"
+        className={
+          key === "postalCode"
+            ? "input-field font-mono tracking-[0.15em]"
+            : "input-field"
+        }
+        inputMode={key === "postalCode" ? "numeric" : undefined}
+        maxLength={key === "postalCode" ? 5 : undefined}
       />
       {errors[key] && <p className="input-error">{errors[key]}</p>}
     </div>
@@ -153,7 +174,7 @@ export default function Checkout() {
                * saved default address.  When there is no saved address we go
                * straight to the one-time form.
                */}
-              {savedAddress && (
+              {savedAddresses.length > 0 && (
                 <div className="mb-6 border border-brand-200 divide-y divide-brand-100">
                   {/* Option A: use saved default address */}
                   <label className="flex items-start gap-3 px-4 py-4 cursor-pointer">
@@ -169,14 +190,28 @@ export default function Checkout() {
                     />
                     <div>
                       <p className="text-sm font-medium text-brand-900">
-                        Use saved address
+                        Use a saved address
                       </p>
-                      <p className="text-xs text-brand-500 mt-0.5">
-                        {savedAddress.fullName} &middot; {savedAddress.line1}
-                        {savedAddress.line2 ? `, ${savedAddress.line2}` : ""},&nbsp;
-                        {savedAddress.city} {savedAddress.postalCode},{" "}
-                        {savedAddress.country}
-                      </p>
+                      <div className="mt-2 space-y-2">
+                        <select
+                          value={selectedSavedAddressId ?? ""}
+                          onChange={(e) => setSelectedSavedAddressId(Number(e.target.value))}
+                          className="input-field"
+                        >
+                          {savedAddresses.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.label}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedSavedAddress && (
+                          <p className="text-xs text-brand-500 mt-0.5">
+                            {selectedSavedAddress.fullName} &middot; {selectedSavedAddress.line1}
+                            {selectedSavedAddress.line2 ? `, ${selectedSavedAddress.line2}` : ""},&nbsp;
+                            {selectedSavedAddress.city} {selectedSavedAddress.postalCode}, {selectedSavedAddress.country}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </label>
 
@@ -202,14 +237,14 @@ export default function Checkout() {
               )}
 
               {/* One-time address form — shown when no saved address exists OR user chose "new" */}
-              {(!savedAddress || mode === "new") && (
+              {(savedAddresses.length === 0 || mode === "new") && (
                 <div className="space-y-4">
                   {field("fullName",   "Full Name",      "John Smith")}
                   {field("line1",      "Address Line 1", "123 Main Street")}
                   {field("line2",      "Address Line 2", "Apt 4B", true)}
                   <div className="grid grid-cols-2 gap-4">
                     {field("city",       "City",           "Istanbul")}
-                    {field("postalCode", "Postal Code",    "34000")}
+                    {field("postalCode", "Postal Code",    "00000")}
                   </div>
                   {field("country",    "Country",        "Turkey")}
                 </div>

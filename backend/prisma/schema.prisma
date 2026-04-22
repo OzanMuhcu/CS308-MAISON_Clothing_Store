@@ -34,8 +34,29 @@ model User {
 
   cartItems CartItem[]
   orders    Order[]
+  addresses UserAddress[]
 
   @@map("users")
+}
+
+model UserAddress {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  label      String
+  fullName   String   @map("full_name")
+  line1      String
+  line2      String   @default("")
+  city       String
+  postalCode String   @map("postal_code")
+  country    String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, label])
+  @@index([userId])
+  @@map("user_addresses")
 }
 
 model Product {
