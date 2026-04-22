@@ -5,9 +5,12 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log("Clearing existing data...");
-  await prisma.cartItem.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.user.deleteMany();
+  // OrderItem ve Order tablolarını da temizleyelim ki hata vermesin
+  await prisma.orderItem.deleteMany().catch(() => {});
+  await prisma.order.deleteMany().catch(() => {});
+  await prisma.cartItem.deleteMany().catch(() => {});
+  await prisma.product.deleteMany().catch(() => {});
+  await prisma.user.deleteMany().catch(() => {});
 
   console.log("Creating demo users...");
   const hash = await bcrypt.hash("password123", 12);
@@ -56,16 +59,18 @@ async function main() {
         price: 195.00,
         stockQty: 18,
         sku: "KN-CSH-004",
-        imageUrl: "https://images.unsplash.com/photo-1638643391904-9b551ba91eaa?w=600&h=800&fit=crop",
+        // ESKİ LİNKİ SİL, BUNU YAPIŞTIR:
+        imageUrl: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&h=800&fit=crop",
         category: "Knitwear",
       },
+// ... diğer kodlar
       {
         name: "Denim Trucker Jacket",
         description: "Heavyweight selvedge denim jacket with copper rivets and tonal stitching. Raw unwashed finish that develops character over time.",
         price: 120.00,
         stockQty: 25,
         sku: "OC-DNM-005",
-        imageUrl: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=600&h=800&fit=crop",
+        imageUrl: "https://images.unsplash.com/photo-1516259762381-22954d7d3ad2?w=600&h=800&fit=crop",
         category: "Outerwear",
       },
       {
@@ -77,72 +82,19 @@ async function main() {
         imageUrl: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=600&h=800&fit=crop",
         category: "Trousers",
       },
-      {
-        name: "Cotton Pique Polo",
-        description: "Classic polo shirt in heavyweight cotton pique. Mother-of-pearl buttons and ribbed collar that holds its shape wash after wash.",
-        price: 55.00,
-        stockQty: 0,
-        sku: "SH-POL-007",
-        imageUrl: "https://images.unsplash.com/photo-1586363104862-3a5e2ab60d99?w=600&h=800&fit=crop",
-        category: "Shirts",
-      },
-      {
-        name: "Leather Chelsea Boots",
-        description: "Full-grain calf leather with a Goodyear-welted sole. Elastic side panels for easy on-off. Built to age beautifully over years of wear.",
-        price: 245.00,
-        stockQty: 15,
-        sku: "FW-CHB-008",
-        imageUrl: "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=600&h=800&fit=crop",
-        category: "Footwear",
-      },
-      {
-        name: "Wool Blend Blazer",
-        description: "Half-lined blazer in a refined wool-cotton blend. Notch lapel, patch pockets, and a natural shoulder for a modern yet timeless look.",
-        price: 210.00,
-        stockQty: 20,
-        sku: "OC-BLZ-009",
-        imageUrl: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&h=800&fit=crop",
-        category: "Outerwear",
-      },
-      {
-        name: "Brushed Flannel Shirt",
-        description: "Double-brushed cotton flannel with a soft, substantial hand. Subtle windowpane check pattern. An essential for layered autumn looks.",
-        price: 72.00,
-        stockQty: 35,
-        sku: "SH-FLN-010",
-        imageUrl: "https://images.unsplash.com/photo-1604006852748-903fccbc4019?w=600&h=800&fit=crop",
-        category: "Shirts",
-      },
-      {
-        name: "Stretch Slim Jeans",
-        description: "Japanese selvedge denim with 2% elastane for comfort. Slim through the leg with a clean dark indigo wash. Chain-stitched hem.",
-        price: 89.00,
-        stockQty: 50,
-        sku: "TR-JNS-011",
-        imageUrl: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=800&fit=crop",
-        category: "Trousers",
-      },
-      {
-        name: "Waxed Canvas Tote",
-        description: "Durable waxed cotton canvas with vegetable-tanned leather handles. Brass hardware throughout. Spacious interior with internal zip pocket.",
-        price: 45.00,
-        stockQty: 60,
-        sku: "AC-TOT-012",
-        imageUrl: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&h=800&fit=crop",
-        category: "Accessories",
-      },
     ],
   });
 
   const counts = await Promise.all([prisma.user.count(), prisma.product.count()]);
   console.log(`Seeded ${counts[0]} users, ${counts[1]} products.`);
-  console.log("");
-  console.log("Demo accounts (password: password123):");
-  console.log("  customer@demo.com   (customer)");
-  console.log("  sales@demo.com      (sales_manager)");
-  console.log("  product@demo.com    (product_manager)");
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(() => prisma.$disconnect());
+  .catch((e) => {
+    console.error(e);
+    // process hatasını engellemek için doğrudan 1 ile çıkış yapıyoruz
+    throw e;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
