@@ -81,8 +81,8 @@ export default function ProductCard({ product }: { product: Product }) {
           {outOfStock
             ? <span className="flex-shrink-0 text-[10px] tracking-wide text-red-500 font-medium">Out of stock</span>
             : lowStock
-              ? <span className="flex-shrink-0 text-[10px] tracking-wide text-amber-600 font-medium">Only a few left</span>
-              : null
+              ? <span className="flex-shrink-0 text-[10px] tracking-wide text-amber-600 font-medium">Only {product.stockQty} left</span>
+              : <span className="flex-shrink-0 text-[10px] tracking-wide text-green-600 font-medium">{product.stockQty} in stock</span>
           }
         </div>
         <p className="font-body text-sm text-brand-700">${product.price.toFixed(2)}</p>

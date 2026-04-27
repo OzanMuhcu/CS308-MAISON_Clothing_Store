@@ -291,8 +291,8 @@ export default function ProductDetail() {
             </div>
             <div className="flex justify-between py-3 border-b border-brand-100 text-sm">
               <span className="text-brand-500">Stock</span>
-              <span className={`font-medium ${outOfStock ? "text-red-600" : "text-brand-900"}`}>
-                {outOfStock ? "Out of Stock" : lowStock ? "Only a few left" : "In stock"}
+              <span className={`font-medium ${outOfStock ? "text-red-600" : lowStock ? "text-amber-600" : "text-green-600"}`}>
+                {outOfStock ? "Out of Stock" : lowStock ? `Only ${product.stockQty} left` : `${product.stockQty} in stock`}
               </span>
             </div>
             <div className="flex justify-between py-3 text-sm">
