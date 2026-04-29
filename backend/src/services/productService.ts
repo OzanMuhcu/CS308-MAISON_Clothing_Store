@@ -23,6 +23,7 @@ export async function listProducts(query: {
   if (query.sort === "price_asc") orderBy = { price: "asc" };
   else if (query.sort === "price_desc") orderBy = { price: "desc" };
   else if (query.sort === "name_asc") orderBy = { name: "asc" };
+  else if (query.sort === "rating_desc") orderBy = { avgRating: "desc" };
 
   const products = await prisma.product.findMany({ where, orderBy });
 
@@ -35,6 +36,8 @@ export async function listProducts(query: {
     sku: p.sku,
     imageUrl: p.imageUrl,
     category: p.category,
+    avgRating: p.avgRating,
+    ratingCount: p.ratingCount,
   }));
 }
 
@@ -51,6 +54,8 @@ export async function getProduct(id: number) {
     sku: product.sku,
     imageUrl: product.imageUrl,
     category: product.category,
+    avgRating: product.avgRating,
+    ratingCount: product.ratingCount,
   };
 }
 

@@ -21,19 +21,30 @@ enum OrderStatus {
   cancelled
 }
 
+enum CommentStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
   id             Int      @id @default(autoincrement())
   name           String
   email          String   @unique
   passwordHash   String   @map("password_hash")
   role           Role     @default(customer)
+  /// Story 14: nullable JSON default delivery address snapshot.
+  /// Shape: { fullName, line1, line2?, city, postalCode, country }
   defaultAddress Json?    @map("default_address")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  savedCards          SavedCard[]
-  cartItems           CartItem[]
-  orders              Order[]
-  addresses           UserAddress[]
+  savedCards    SavedCard[]
+  cartItems     CartItem[]
+  orders        Order[]
+  addresses     UserAddress[]
+  wishlistItems WishlistItem[]
+  ratings       Rating[]
+  comments      Comment[]
 
   @@map("users")
 }
@@ -67,10 +78,15 @@ model Product {
   sku         String   @unique
   imageUrl    String   @default("") @map("image_url")
   category    String   @default("")
+  avgRating   Float    @default(0) @map("avg_rating")
+  ratingCount Int      @default(0) @map("rating_count")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  cartItems  CartItem[]
-  orderItems OrderItem[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  wishlistItems WishlistItem[]
+  ratings       Rating[]
+  comments      Comment[]
 
   @@index([category])
   @@index([name])
@@ -115,7 +131,7 @@ model CartItem {
 model Order {
   id          Int         @id @default(autoincrement())
   userId      Int         @map("user_id")
-  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
+  totalAmount Decimal     @db.Decimal(10, 2) @map("total_amount")
   status      OrderStatus @default(confirmed)
   address     Json        @default("{}")
   invoiceNo   String?     @unique @map("invoice_no")
@@ -134,12 +150,57 @@ model OrderItem {
   orderId     Int     @map("order_id")
   productId   Int     @map("product_id")
   productName String  @map("product_name")
-  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(10, 2) @map("unit_price")
   quantity    Int
-  lineTotal   Decimal @map("line_total") @db.Decimal(10, 2)
+  lineTotal   Decimal @db.Decimal(10, 2) @map("line_total")
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 
   @@map("order_items")
+}
+
+/// Wishlist: members-only, supports add/remove. Out-of-stock products allowed.
+model WishlistItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  productId Int      @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("wishlist_items")
+}
+
+/// Rating: 1-5 stars, one per user per product. Only if product purchased & order delivered.
+model Rating {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  productId Int      @map("product_id")
+  value     Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("ratings")
+}
+
+/// Comment: pending by default, visible only when approved. Independent from rating.
+model Comment {
+  id        Int           @id @default(autoincrement())
+  userId    Int           @map("user_id")
+  productId Int           @map("product_id")
+  text      String
+  status    CommentStatus @default(pending)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
 }
