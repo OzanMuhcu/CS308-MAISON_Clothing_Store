@@ -63,8 +63,13 @@ createdb maison_sprint3
 ```bash
 cd backend
 cp .env.example .env
-# Edit .env — set DATABASE_URL:
+# Edit .env set these accordingly:
 #   DATABASE_URL="postgresql://youruser@localhost:5432/maison_sprint3?schema=public"
+#   SMTP_HOST=smtp.gmail.com
+#   SMTP_PORT=587
+#   SMTP_USER=noreplymaisoncs308@gmail.com
+#   SMTP_PASS=kduv rxdt jhdw dyue
+#   SMTP_FROM=noreplymaisoncs308@gmail.com
 npm install
 npx prisma generate
 npx prisma migrate dev --name init
