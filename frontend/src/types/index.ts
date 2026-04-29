@@ -67,6 +67,18 @@ export interface SavedAddress extends OrderAddress {
   updatedAt: string;
 }
 
+export interface SavedCard {
+  id: number;
+  label: string;
+  cardholderFullName: string;
+  cardNumber: string;
+  cvv: string;
+  last4: string;
+  expiry: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   id: number;
   totalAmount: number;
