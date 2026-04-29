@@ -8,7 +8,135 @@ const router = Router();
 
 // All /api/users routes require authentication
 router.use(authenticate);
+const savedCardSchema = z.object({
+  label: z.string().trim().min(1).max(40),
+  cardholderFullName: z.string().trim().min(2),
+  cardNumber: z.string().regex(/^\d{16}$/, "Card number must be 16 digits"),
+  cvv: z.string().regex(/^\d{3,4}$/, "CVV must be 3-4 digits"),
+  expiry: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry must be MM/YY"),
+});
+const normalizeCard = (card: any) => ({
+  id: card.id,
+  label: card.label,
+  cardholderFullName: card.cardholderFullName,
+  cardNumber: card.cardNumber,
+  cvv: card.cvv,
+  last4: card.last4,
+  expiry: card.expiry,
+  createdAt: card.createdAt,
+  updatedAt: card.updatedAt,
+});
+router.get("/me/cards", async (req, res, next) => {
+  try {
+    const cards = await prisma.savedCard.findMany({
+      where: { userId: req.user!.userId },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    });
 
+    res.json({ cards: cards.map(normalizeCard) });
+  } catch (err) {
+    next(err);
+  }
+});
+router.post("/me/cards", async (req, res, next) => {
+  try {
+    const data = savedCardSchema.parse(req.body);
+
+    const existing = await prisma.savedCard.findFirst({
+      where: {
+        userId: req.user!.userId,
+        label: { equals: data.label, mode: "insensitive" },
+      },
+    });
+
+    if (existing) {
+      throw new AppError(409, "Card label must be unique.");
+    }
+
+    const created = await prisma.savedCard.create({
+      data: {
+        userId: req.user!.userId,
+        label: data.label,
+        cardholderFullName: data.cardholderFullName,
+        cardNumber: data.cardNumber,
+        cvv: data.cvv,
+        last4: data.cardNumber.slice(-4),
+        expiry: data.expiry,
+      },
+    });
+
+    res.status(201).json({ card: normalizeCard(created) });
+  } catch (err) {
+    next(err);
+  }
+});
+router.put("/me/cards/:id", async (req, res, next) => {
+  try {
+    const cardId = Number(req.params.id);
+    if (!Number.isInteger(cardId)) {
+      throw new AppError(400, "Invalid card id.");
+    }
+
+    const data = savedCardSchema.parse(req.body);
+
+    const existing = await prisma.savedCard.findFirst({
+      where: { id: cardId, userId: req.user!.userId },
+    });
+
+    if (!existing) {
+      throw new AppError(404, "Card not found.");
+    }
+
+    const duplicate = await prisma.savedCard.findFirst({
+      where: {
+        userId: req.user!.userId,
+        id: { not: cardId },
+        label: { equals: data.label, mode: "insensitive" },
+      },
+    });
+
+    if (duplicate) {
+      throw new AppError(409, "Card label must be unique.");
+    }
+
+    const updated = await prisma.savedCard.update({
+      where: { id: cardId },
+      data: {
+        label: data.label,
+        cardholderFullName: data.cardholderFullName,
+        cardNumber: data.cardNumber,
+        cvv: data.cvv,
+        last4: data.cardNumber.slice(-4),
+        expiry: data.expiry,
+      },
+    });
+
+    res.json({ card: normalizeCard(updated) });
+  } catch (err) {
+    next(err);
+  }
+});
+router.delete("/me/cards/:id", async (req, res, next) => {
+  try {
+    const cardId = Number(req.params.id);
+    if (!Number.isInteger(cardId)) {
+      throw new AppError(400, "Invalid card id.");
+    }
+
+    const existing = await prisma.savedCard.findFirst({
+      where: { id: cardId, userId: req.user!.userId },
+    });
+
+    if (!existing) {
+      throw new AppError(404, "Card not found.");
+    }
+
+    await prisma.savedCard.delete({ where: { id: cardId } });
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
 const addressSchema = z.object({
   fullName:   z.string().min(1, "Full name is required"),
   line1:      z.string().min(1, "Address line 1 is required"),

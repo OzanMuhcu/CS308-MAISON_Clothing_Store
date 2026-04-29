@@ -27,14 +27,13 @@ model User {
   email          String   @unique
   passwordHash   String   @map("password_hash")
   role           Role     @default(customer)
-  /// Story 14: nullable JSON default delivery address snapshot.
-  /// Shape: { fullName, line1, line2?, city, postalCode, country }
   defaultAddress Json?    @map("default_address")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  cartItems CartItem[]
-  orders    Order[]
-  addresses UserAddress[]
+  savedCards          SavedCard[]
+  cartItems           CartItem[]
+  orders              Order[]
+  addresses           UserAddress[]
 
   @@map("users")
 }
@@ -78,6 +77,25 @@ model Product {
   @@map("products")
 }
 
+model SavedCard {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @map("user_id")
+  label              String
+  cardholderFullName String   @map("cardholder_name")
+  cardNumber         String   @map("card_number")
+  cvv                String   @default("")
+  last4              String   @map("last_four")
+  expiry             String
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, label])
+  @@index([userId])
+  @@map("user_cards")
+}
+
 model CartItem {
   id        Int @id @default(autoincrement())
   userId    Int @map("user_id")
@@ -97,7 +115,7 @@ model CartItem {
 model Order {
   id          Int         @id @default(autoincrement())
   userId      Int         @map("user_id")
-  totalAmount Decimal     @db.Decimal(10, 2) @map("total_amount")
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
   status      OrderStatus @default(confirmed)
   address     Json        @default("{}")
   invoiceNo   String?     @unique @map("invoice_no")
@@ -116,9 +134,9 @@ model OrderItem {
   orderId     Int     @map("order_id")
   productId   Int     @map("product_id")
   productName String  @map("product_name")
-  unitPrice   Decimal @db.Decimal(10, 2) @map("unit_price")
+  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
   quantity    Int
-  lineTotal   Decimal @db.Decimal(10, 2) @map("line_total")
+  lineTotal   Decimal @map("line_total") @db.Decimal(10, 2)
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
