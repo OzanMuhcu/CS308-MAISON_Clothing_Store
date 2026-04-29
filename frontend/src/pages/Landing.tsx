@@ -27,6 +27,7 @@ export default function Landing() {
     if (sort === "price_asc") list.sort((a, b) => a.price - b.price);
     else if (sort === "price_desc") list.sort((a, b) => b.price - a.price);
     else if (sort === "name_asc") list.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === "rating_desc") list.sort((a, b) => b.avgRating - a.avgRating);
     return list;
   }, [products, search, category, sort]);
 
@@ -77,6 +78,7 @@ export default function Landing() {
             <option value="price_asc">Price: Low to High</option>
             <option value="price_desc">Price: High to Low</option>
             <option value="name_asc">Name: A to Z</option>
+            <option value="rating_desc">Rating: Highest</option>
           </select>
         </div>
 

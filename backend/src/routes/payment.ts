@@ -1,22 +1,33 @@
-import { Router, Request, Response } from "express";
-import { ZodError } from "zod";
+import { Router, Request, Response, NextFunction } from "express";
+import { authenticate } from "../middleware/auth";
 import { paymentSchema } from "../validators/payment";
+import { ZodError } from "zod";
 
 const router = Router();
 
 // POST /api/payment/validate
-router.post("/validate", async (req: Request, res: Response) => {
-  try {
-    paymentSchema.parse(req.body);
-    return res.json({ ok: true, message: "Payment validated successfully" });
-  } catch (err: any) {
-    if (err instanceof ZodError) {
-      const firstError = err.errors[0]?.message || "Invalid payment details";
-      return res.status(400).json({ error: firstError });
-    }
+// Mock payment validation — checks card format only, never stores card data.
+// Requires authentication so only logged-in users can submit.
+router.post(
+  "/validate",
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Validate card fields with Zod
+      paymentSchema.parse(req.body);
 
-    return res.status(500).json({ error: "Validation failed" });
+      // Mock: always approve if validation passes.
+      // IMPORTANT: card data is intentionally NOT logged or stored.
+      res.json({ ok: true, message: "Payment validated successfully" });
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const firstError = err.errors[0]?.message || "Invalid payment details";
+        res.status(400).json({ ok: false, message: firstError });
+        return;
+      }
+      next(err);
+    }
   }
-});
+);
 
 export default router;
