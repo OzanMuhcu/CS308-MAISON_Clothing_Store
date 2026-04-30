@@ -17,6 +17,8 @@ export interface Product {
   sku: string;
   imageUrl: string;
   category: string;
+  avgRating: number;
+  ratingCount: number;
 }
 
 export interface CartItem {
@@ -67,6 +69,18 @@ export interface SavedAddress extends OrderAddress {
   updatedAt: string;
 }
 
+export interface SavedCard {
+  id: number;
+  label: string;
+  cardholderFullName: string;
+  cardNumber: string;
+  cvv: string;
+  last4: string;
+  expiry: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   id: number;
   totalAmount: number;
@@ -75,4 +89,42 @@ export interface Order {
   invoiceNo: string | null;
   createdAt: string;
   items: OrderItem[];
+}
+
+// Wishlist
+export interface WishlistItem {
+  id: number;
+  productId: number;
+  createdAt: string;
+  product: Product;
+}
+
+// Reviews
+export interface ReviewComment {
+  id: number;
+  userId: number;
+  userName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface ReviewRating {
+  id: number;
+  userId: number;
+  userName: string;
+  value: number;
+  createdAt: string;
+}
+
+export interface ProductReviews {
+  comments: ReviewComment[];
+  ratings: ReviewRating[];
+  avgRating: number;
+  ratingCount: number;
+}
+
+export interface MyReviewData {
+  canReview: boolean;
+  myRating: number | null;
+  myComments: { id: number; text: string; status: string; createdAt: string }[];
 }

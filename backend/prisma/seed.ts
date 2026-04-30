@@ -9,6 +9,9 @@ const u = (id: string) => `https://images.unsplash.com/photo-${id}?w=600&h=800&f
 
 async function main() {
   console.log("Clearing existing data...");
+  await prisma.comment.deleteMany();
+  await prisma.rating.deleteMany();
+  await prisma.wishlistItem.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
   await prisma.cartItem.deleteMany();
@@ -17,9 +20,11 @@ async function main() {
 
   console.log("Creating users...");
   const hash = await bcrypt.hash("password123", 12);
+  const customer = await prisma.user.create({
+    data: { name: "Polat Canpolat", email: "customer@demo.com", passwordHash: hash, role: "customer" },
+  });
   await prisma.user.createMany({
     data: [
-      { name: "Polat Canpolat", email: "customer@demo.com", passwordHash: hash, role: "customer" },
       { name: "Sarah Keller", email: "sales@demo.com", passwordHash: hash, role: "sales_manager" },
       { name: "Peter Durand", email: "product@demo.com", passwordHash: hash, role: "product_manager" },
     ],
@@ -84,8 +89,57 @@ async function main() {
     ],
   });
 
-  const counts = await Promise.all([prisma.user.count(), prisma.product.count()]);
-  console.log(`Seeded ${counts[0]} users, ${counts[1]} products.`);
+  // ── Sample orders for customer@demo.com ──
+  console.log("Creating sample orders...");
+  const addr = { fullName: "Polat Canpolat", line1: "123 Main St", line2: "", city: "Istanbul", postalCode: "34000", country: "Turkey" };
+
+  const p1 = await prisma.product.findUnique({ where: { sku: "JC-001" } });
+  const p2 = await prisma.product.findUnique({ where: { sku: "SH-001" } });
+  const p3 = await prisma.product.findUnique({ where: { sku: "FW-003" } });
+  const p4 = await prisma.product.findUnique({ where: { sku: "KN-001" } });
+  const p5 = await prisma.product.findUnique({ where: { sku: "TR-002" } });
+
+  if (p1 && p2 && p3 && p4 && p5) {
+    // Order 1: delivered (enables reviews)
+    await prisma.order.create({
+      data: {
+        userId: customer.id, totalAmount: 487, status: "delivered", address: addr, invoiceNo: "INV-2026-001",
+        createdAt: new Date("2026-04-10T14:00:00Z"),
+        items: { create: [
+          { productId: p1.id, productName: p1.name, unitPrice: Number(p1.price), quantity: 1, lineTotal: Number(p1.price) },
+          { productId: p2.id, productName: p2.name, unitPrice: Number(p2.price), quantity: 2, lineTotal: Number(p2.price) * 2 },
+          { productId: p3.id, productName: p3.name, unitPrice: Number(p3.price), quantity: 1, lineTotal: Number(p3.price) },
+        ]},
+      },
+    });
+
+    // Order 2: processing
+    await prisma.order.create({
+      data: {
+        userId: customer.id, totalAmount: 280, status: "processing", address: addr, invoiceNo: "INV-2026-002",
+        createdAt: new Date("2026-04-18T10:30:00Z"),
+        items: { create: [
+          { productId: p4.id, productName: p4.name, unitPrice: Number(p4.price), quantity: 1, lineTotal: Number(p4.price) },
+          { productId: p5.id, productName: p5.name, unitPrice: Number(p5.price), quantity: 1, lineTotal: Number(p5.price) },
+        ]},
+      },
+    });
+
+    // Order 3: confirmed
+    await prisma.order.create({
+      data: {
+        userId: customer.id, totalAmount: 120, status: "confirmed", address: addr, invoiceNo: "INV-2026-003",
+        createdAt: new Date("2026-04-22T16:00:00Z"),
+        items: { create: [
+          { productId: p2.id, productName: p2.name, unitPrice: Number(p2.price), quantity: 1, lineTotal: Number(p2.price) },
+          { productId: p5.id, productName: p5.name, unitPrice: Number(p5.price), quantity: 1, lineTotal: Number(p5.price) },
+        ]},
+      },
+    });
+  }
+
+  const counts = await Promise.all([prisma.user.count(), prisma.product.count(), prisma.order.count()]);
+  console.log(`Seeded ${counts[0]} users, ${counts[1]} products, ${counts[2]} orders.`);
   console.log("\nAccounts (password: password123):");
   console.log("  customer@demo.com   (customer)");
   console.log("  sales@demo.com      (sales_manager)");

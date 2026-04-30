@@ -110,6 +110,7 @@ export async function sendInvoiceEmail(
   try {
     let transporter: nodemailer.Transporter;
     let isEthereal = false;
+    let fromEmail: string;
 
     if (env.smtp.host && env.smtp.user) {
       // Use configured SMTP
@@ -119,6 +120,7 @@ export async function sendInvoiceEmail(
         secure: env.smtp.port === 465,
         auth: { user: env.smtp.user, pass: env.smtp.pass },
       });
+      fromEmail = env.smtp.from;
     } else {
       // Fall back to Ethereal test account
       const testAccount = await nodemailer.createTestAccount();
@@ -129,11 +131,11 @@ export async function sendInvoiceEmail(
         auth: { user: testAccount.user, pass: testAccount.pass },
       });
       isEthereal = true;
-      console.log("[Email] Using Ethereal test account:", testAccount.user);
+      fromEmail = testAccount.user;
     }
 
     const info = await transporter.sendMail({
-      from: env.smtp.from,
+      from: fromEmail,
       to: data.customerEmail,
       subject: `MAISON — Invoice ${data.invoiceNo}`,
       text: `Dear ${data.customerName},\n\nThank you for your purchase.\nYour invoice (${data.invoiceNo}) is attached.\n\nTotal: $${data.totalAmount.toFixed(2)}\n\nMAISON`,
@@ -149,15 +151,11 @@ export async function sendInvoiceEmail(
 
     if (isEthereal) {
       const previewUrl = nodemailer.getTestMessageUrl(info) as string;
-      console.log("[Email] Preview URL:", previewUrl);
       return { previewUrl };
     }
 
-    console.log("[Email] Sent to", data.customerEmail);
     return {};
   } catch (err) {
-    // Log but do NOT throw — order must succeed even if email fails
-    console.error("[Email] Failed to send invoice:", err);
     return {};
   }
 }

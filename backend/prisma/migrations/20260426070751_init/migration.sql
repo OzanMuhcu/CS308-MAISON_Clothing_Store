@@ -4,6 +4,9 @@ CREATE TYPE "Role" AS ENUM ('customer', 'sales_manager', 'product_manager');
 -- CreateEnum
 CREATE TYPE "OrderStatus" AS ENUM ('confirmed', 'processing', 'shipped', 'delivered', 'cancelled');
 
+-- CreateEnum
+CREATE TYPE "CommentStatus" AS ENUM ('pending', 'approved', 'rejected');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" SERIAL NOT NULL,
@@ -44,6 +47,8 @@ CREATE TABLE "products" (
     "sku" TEXT NOT NULL,
     "image_url" TEXT NOT NULL DEFAULT '',
     "category" TEXT NOT NULL DEFAULT '',
+    "avg_rating" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "rating_count" INTEGER NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "products_pkey" PRIMARY KEY ("id")
@@ -85,6 +90,39 @@ CREATE TABLE "order_items" (
     CONSTRAINT "order_items_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "wishlist_items" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "product_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "wishlist_items_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ratings" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "product_id" INTEGER NOT NULL,
+    "value" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ratings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "comments" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "product_id" INTEGER NOT NULL,
+    "text" TEXT NOT NULL,
+    "status" "CommentStatus" NOT NULL DEFAULT 'pending',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "comments_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -112,6 +150,15 @@ CREATE UNIQUE INDEX "orders_invoice_no_key" ON "orders"("invoice_no");
 -- CreateIndex
 CREATE INDEX "orders_user_id_idx" ON "orders"("user_id");
 
+-- CreateIndex
+CREATE INDEX "wishlist_items_user_id_idx" ON "wishlist_items"("user_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "wishlist_items_user_id_product_id_key" ON "wishlist_items"("user_id", "product_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ratings_user_id_product_id_key" ON "ratings"("user_id", "product_id");
+
 -- AddForeignKey
 ALTER TABLE "user_addresses" ADD CONSTRAINT "user_addresses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -129,3 +176,21 @@ ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "wishlist_items" ADD CONSTRAINT "wishlist_items_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "wishlist_items" ADD CONSTRAINT "wishlist_items_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ratings" ADD CONSTRAINT "ratings_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ratings" ADD CONSTRAINT "ratings_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "comments" ADD CONSTRAINT "comments_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "comments" ADD CONSTRAINT "comments_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
