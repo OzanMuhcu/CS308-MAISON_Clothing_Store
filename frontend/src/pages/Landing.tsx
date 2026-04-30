@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import api from "../services/api";
 import type { Product } from "../types";
 import ProductCard from "../components/ProductCard";
@@ -11,25 +11,30 @@ export default function Landing() {
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("");
 
+  // Categories load once.
   useEffect(() => {
-    Promise.all([api.get("/products"), api.get("/products/categories")])
-      .then(([p, c]) => { setProducts(p.data); setCategories(c.data); })
-      .finally(() => setLoading(false));
+    api.get("/products/categories").then((c) => setCategories(c.data)).catch(() => {});
   }, []);
 
-  const filtered = useMemo(() => {
-    let list = [...products];
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
-    }
-    if (category) list = list.filter((p) => p.category === category);
-    if (sort === "price_asc") list.sort((a, b) => a.price - b.price);
-    else if (sort === "price_desc") list.sort((a, b) => b.price - a.price);
-    else if (sort === "name_asc") list.sort((a, b) => a.name.localeCompare(b.name));
-    else if (sort === "rating_desc") list.sort((a, b) => b.avgRating - a.avgRating);
-    return list;
-  }, [products, search, category, sort]);
+  // Refetch products whenever filter/sort changes. Debounce search input
+  // so each keystroke doesn't fire a request.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setLoading(true);
+      api
+        .get("/products", {
+          params: {
+            search: search || undefined,
+            category: category || undefined,
+            sort: sort || undefined,
+          },
+        })
+        .then(({ data }) => setProducts(data))
+        .catch(() => setProducts([]))
+        .finally(() => setLoading(false));
+    }, search ? 250 : 0);
+    return () => clearTimeout(handle);
+  }, [search, category, sort]);
 
   return (
     <div>
@@ -58,7 +63,7 @@ export default function Landing() {
       <section id="collection" className="max-w-7xl mx-auto px-6 lg:px-8 py-14 lg:py-20">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <h2 className="font-display text-2xl lg:text-3xl font-semibold text-brand-900">Collection</h2>
-          <p className="text-sm text-brand-400">{filtered.length} {filtered.length === 1 ? "piece" : "pieces"}</p>
+          <p className="text-sm text-brand-400">{products.length} {products.length === 1 ? "piece" : "pieces"}</p>
         </div>
 
         {/* Filters row: search, category dropdown, sort dropdown */}
@@ -84,11 +89,11 @@ export default function Landing() {
 
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" /></div>
-        ) : filtered.length === 0 ? (
+        ) : products.length === 0 ? (
           <div className="text-center py-20"><p className="text-brand-500 text-sm">No products found matching your criteria.</p></div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-8">
-            {filtered.map((p) => <ProductCard key={p.id} product={p} />)}
+            {products.map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
         )}
       </section>
