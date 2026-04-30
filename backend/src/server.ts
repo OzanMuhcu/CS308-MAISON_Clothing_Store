@@ -8,6 +8,8 @@ import cartRoutes from "./routes/cart";
 import paymentRoutes from "./routes/payment";
 import orderRoutes from "./routes/orders";
 import userRoutes from "./routes/users";
+import wishlistRoutes from "./routes/wishlist";
+import reviewRoutes from "./routes/reviews";
 
 const app = express();
 
@@ -37,6 +39,8 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });

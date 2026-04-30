@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import api from "../services/api";
+import type { SavedCard } from "../types";
 
 type FormValues = {
   cardholderFullName: string;
@@ -32,7 +33,17 @@ export default function Payment() {
   emailPreviewUrl?: string | null;
 } | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>();
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormValues>();
+
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<number | "new">("new");
+
+  useEffect(() => {
+    api
+      .get("/users/me/cards")
+      .then(({ data }) => setSavedCards(data.cards || []))
+      .catch(() => {});
+  }, []);
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -186,6 +197,46 @@ export default function Payment() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           {serverError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">{serverError}</div>}
 
+          {savedCards.length > 0 && (
+            <div>
+              <label className="input-label">Use a Saved Card</label>
+              <select
+                value={selectedCardId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "new") {
+                    setSelectedCardId("new");
+                    setValue("cardholderFullName", "");
+                    setValue("cardNumber", "");
+                    setValue("expiry", "");
+                    setValue("cvv", "");
+                    return;
+                  }
+                  const id = Number(v);
+                  const c = savedCards.find((x) => x.id === id);
+                  if (!c) return;
+                  setSelectedCardId(id);
+                  // Autofill all four fields from the card itself —
+                  // cardholder name is the value saved with this card,
+                  // not the user's profile name.
+                  setValue("cardholderFullName", c.cardholderFullName, { shouldValidate: true });
+                  const formattedNumber = c.cardNumber.replace(/(\d{4})(?=\d)/g, "$1 ");
+                  setValue("cardNumber", formattedNumber, { shouldValidate: true });
+                  setValue("expiry", c.expiry, { shouldValidate: true });
+                  setValue("cvv", c.cvv, { shouldValidate: true });
+                }}
+                className="input-field"
+              >
+                <option value="new">Enter a new card</option>
+                {savedCards.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label} — •••• {c.last4}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label htmlFor="cardholderFullName" className="input-label">Cardholder Full Name</label>
             <input
@@ -233,7 +284,7 @@ export default function Payment() {
           </button>
 
           <p className="text-[10px] text-brand-400 text-center leading-relaxed">
-            Mock payment for demonstration. No real charges. Card data is never stored.
+            Mock payment for demonstration. No real charges.
           </p>
         </form>
       </div>
