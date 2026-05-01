@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import type { OrderAddress, SavedAddress, SavedCard } from "../types";
+import type { OrderAddress, SavedAddress, SavedCard, WishlistList } from "../types";
 
 type AddressForm = OrderAddress & { label: string };
 
@@ -21,6 +22,12 @@ type CardForm = {
   cardNumber: string;
   expiry: string;
   cvv: string;
+};
+
+type ConfirmDelete = {
+  kind: "address" | "card";
+  id: number;
+  label: string;
 };
 
 const EMPTY_CARD: CardForm = {
@@ -46,7 +53,7 @@ export default function Account() {
   const [address, setAddress] = useState<AddressForm>(EMPTY_ADDRESS);
   const [loadingAddress, setLoadingAddress] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "saved" | "deleted" | "error">("idle");
   const [errors, setErrors] = useState<Partial<Record<keyof AddressForm, string>>>({});
 
   const [cards, setCards] = useState<SavedCard[]>([]);
@@ -56,6 +63,11 @@ export default function Account() {
   const [savingCard, setSavingCard] = useState(false);
   const [cardStatus, setCardStatus] = useState<"idle" | "saved" | "deleted" | "error">("idle");
   const [cardErrors, setCardErrors] = useState<Partial<Record<keyof CardForm, string>>>({});
+
+  const [confirmDelete, setConfirmDelete] = useState<ConfirmDelete | null>(null);
+
+  const [wishlists, setWishlists] = useState<WishlistList[]>([]);
+  const [loadingWishlists, setLoadingWishlists] = useState(true);
 
   if (!user) return null;
 
@@ -107,6 +119,14 @@ export default function Account() {
         // silently ignore — user can still add a new card
       })
       .finally(() => setLoadingCards(false));
+  }, []);
+
+  useEffect(() => {
+    api
+      .get("/wishlists")
+      .then(({ data }) => setWishlists(data))
+      .catch(() => setWishlists([]))
+      .finally(() => setLoadingWishlists(false));
   }, []);
 
   const selectCard = (c: SavedCard) => {
@@ -224,6 +244,30 @@ export default function Account() {
     }
   };
 
+  const handleDeleteAddress = async (addressId: number) => {
+    setSaving(true);
+    setStatus("idle");
+    try {
+      await api.delete(`/users/me/addresses/${addressId}`);
+      const remaining = addresses.filter((a) => a.id !== addressId);
+      setAddresses(remaining);
+      if (remaining.length > 0) {
+        setSelectedAddressId(remaining[0].id);
+        setAddress({ ...remaining[0] });
+      } else {
+        setSelectedAddressId("new");
+        setAddress(EMPTY_ADDRESS);
+        setErrors({});
+      }
+      setStatus("deleted");
+      setTimeout(() => setStatus("idle"), 2500);
+    } catch {
+      setStatus("error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveCard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateCardForm()) return;
@@ -261,14 +305,12 @@ export default function Account() {
     }
   };
 
-  const handleDeleteCard = async () => {
-    if (selectedCardId === "new") return;
-    if (!window.confirm("Delete this saved card?")) return;
+  const handleDeleteCard = async (cardId: number) => {
     setSavingCard(true);
     setCardStatus("idle");
     try {
-      await api.delete(`/users/me/cards/${selectedCardId}`);
-      const remaining = cards.filter((c) => c.id !== selectedCardId);
+      await api.delete(`/users/me/cards/${cardId}`);
+      const remaining = cards.filter((c) => c.id !== cardId);
       setCards(remaining);
       if (remaining.length > 0) {
         selectCard(remaining[0]);
@@ -283,6 +325,37 @@ export default function Account() {
       setCardStatus("error");
     } finally {
       setSavingCard(false);
+    }
+  };
+
+  const openDeleteAddressDialog = () => {
+    if (selectedAddressId === "new") return;
+    const selected = addresses.find((a) => a.id === selectedAddressId);
+    setConfirmDelete({
+      kind: "address",
+      id: selectedAddressId,
+      label: selected?.label || "this address",
+    });
+  };
+
+  const openDeleteCardDialog = () => {
+    if (selectedCardId === "new") return;
+    const selected = cards.find((c) => c.id === selectedCardId);
+    setConfirmDelete({
+      kind: "card",
+      id: selectedCardId,
+      label: selected?.label || "this card",
+    });
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!confirmDelete) return;
+    const target = confirmDelete;
+    setConfirmDelete(null);
+    if (target.kind === "address") {
+      await handleDeleteAddress(target.id);
+    } else {
+      await handleDeleteCard(target.id);
     }
   };
 
@@ -418,9 +491,24 @@ export default function Account() {
               <button type="submit" disabled={saving} className="btn-primary">
                 {saving ? "Saving..." : selectedAddressId === "new" ? "Save" : "Update"}
               </button>
+              {selectedAddressId !== "new" && (
+                <button
+                  type="button"
+                  onClick={openDeleteAddressDialog}
+                  disabled={saving}
+                  className="text-xs tracking-widest uppercase text-red-600 hover:text-red-800 transition-colors"
+                >
+                  Delete this address
+                </button>
+              )}
               {status === "saved" && (
                 <span className="text-sm text-green-600">
                   Address saved successfully.
+                </span>
+              )}
+              {status === "deleted" && (
+                <span className="text-sm text-green-600">
+                  Address deleted.
                 </span>
               )}
               {status === "error" && (
@@ -435,6 +523,36 @@ export default function Account() {
               different address for a specific order.
             </p>
           </form>
+        )}
+      </section>
+
+      {/* Wishlists */}
+      <section className="mb-10">
+        <h2 className="text-xs tracking-[0.15em] uppercase text-brand-500 font-medium mb-3">
+          Wishlists
+        </h2>
+
+        {loadingWishlists ? (
+          <div className="border border-brand-200 p-6 text-sm text-brand-400">
+            Loading wishlists...
+          </div>
+        ) : wishlists.length === 0 ? (
+          <div className="border border-brand-200 p-6 text-sm text-brand-400">
+            You have not created any wishlists yet.
+          </div>
+        ) : (
+          <div className="border border-brand-200 divide-y divide-brand-100">
+            {wishlists.map((w) => (
+              <Link
+                key={w.id}
+                to={`/wishlist?list=${w.id}`}
+                className="flex items-center justify-between px-5 py-3.5 hover:bg-brand-50 transition-colors"
+              >
+                <span className="text-sm text-brand-900">{w.name}</span>
+                <span className="text-xs text-brand-400">{w.itemCount} items</span>
+              </Link>
+            ))}
+          </div>
         )}
       </section>
 
@@ -562,7 +680,7 @@ export default function Account() {
               {selectedCardId !== "new" && (
                 <button
                   type="button"
-                  onClick={handleDeleteCard}
+                  onClick={openDeleteCardDialog}
                   disabled={savingCard}
                   className="text-xs tracking-widest uppercase text-red-600 hover:text-red-800 transition-colors"
                 >
@@ -589,6 +707,42 @@ export default function Account() {
           </form>
         )}
       </section>
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/40 px-6"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md bg-white border border-brand-200 shadow-xl">
+            <div className="px-6 py-5 border-b border-brand-100">
+              <h3 className="font-display text-lg text-brand-900">
+                {confirmDelete.kind === "address"
+                  ? "Delete saved address?"
+                  : "Delete saved card?"}
+              </h3>
+              <p className="text-sm text-brand-500 mt-2">
+                Delete "{confirmDelete.label}"? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteAction}
+                className="px-6 py-3 text-xs tracking-widest uppercase font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -280,6 +280,28 @@ router.put(
   }
 );
 
+// DELETE /api/users/me/addresses/:id
+// Deletes a saved address.
+router.delete(
+  "/me/addresses/:id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      if (isNaN(id)) throw new AppError(400, "Invalid address ID");
+
+      const existing = await prisma.userAddress.findFirst({
+        where: { id, userId: req.user!.userId },
+      });
+      if (!existing) throw new AppError(404, "Address not found");
+
+      await prisma.userAddress.delete({ where: { id } });
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // GET /api/users/me/address
 // Returns the authenticated user's saved default delivery address (or null).
 router.get(
