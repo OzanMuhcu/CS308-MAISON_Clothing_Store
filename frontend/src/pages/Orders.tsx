@@ -9,6 +9,11 @@ export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const labelStatus = (status: string) => {
+    if (status === "in_transit") return "In transit";
+    return status;
+  };
+
   useEffect(() => {
     api.get("/orders").then((r) => setOrders(r.data)).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -41,7 +46,9 @@ export default function Orders() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-brand-900">${order.totalAmount.toFixed(2)}</p>
-                  <span className="inline-block mt-1 text-[10px] tracking-wider uppercase px-2 py-0.5 bg-green-50 text-green-700 border border-green-200">{order.status}</span>
+                  <span className="inline-block mt-1 text-[10px] tracking-wider uppercase px-2 py-0.5 bg-green-50 text-green-700 border border-green-200">
+                    {labelStatus(order.status)}
+                  </span>
                 </div>
               </div>
               <div className="text-xs text-brand-500 mb-3">
