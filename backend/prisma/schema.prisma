@@ -14,11 +14,9 @@ enum Role {
 }
 
 enum OrderStatus {
-  confirmed
   processing
-  shipped
+  in_transit
   delivered
-  cancelled
 }
 
 enum CommentStatus {
@@ -42,7 +40,7 @@ model User {
   cartItems     CartItem[]
   orders        Order[]
   addresses     UserAddress[]
-  wishlistItems WishlistItem[]
+  wishlists     Wishlist[]
   ratings       Rating[]
   comments      Comment[]
 
@@ -132,7 +130,7 @@ model Order {
   id          Int         @id @default(autoincrement())
   userId      Int         @map("user_id")
   totalAmount Decimal     @db.Decimal(10, 2) @map("total_amount")
-  status      OrderStatus @default(confirmed)
+  status      OrderStatus @default(processing)
   address     Json        @default("{}")
   invoiceNo   String?     @unique @map("invoice_no")
   createdAt   DateTime    @default(now()) @map("created_at")
@@ -160,18 +158,33 @@ model OrderItem {
   @@map("order_items")
 }
 
+model Wishlist {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WishlistItem[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("wishlists")
+}
+
 /// Wishlist: members-only, supports add/remove. Out-of-stock products allowed.
 model WishlistItem {
   id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
+  wishlistId Int     @map("wishlist_id")
   productId Int      @map("product_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, productId])
-  @@index([userId])
+  @@unique([wishlistId, productId])
+  @@index([wishlistId])
   @@map("wishlist_items")
 }
 
