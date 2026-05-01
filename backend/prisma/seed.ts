@@ -12,6 +12,7 @@ async function main() {
   await prisma.comment.deleteMany();
   await prisma.rating.deleteMany();
   await prisma.wishlistItem.deleteMany();
+  await prisma.wishlist.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
   await prisma.cartItem.deleteMany();
@@ -125,16 +126,39 @@ async function main() {
       },
     });
 
-    // Order 3: confirmed
+    // Order 3: in transit
     await prisma.order.create({
       data: {
-        userId: customer.id, totalAmount: 120, status: "confirmed", address: addr, invoiceNo: "INV-2026-003",
+        userId: customer.id, totalAmount: 120, status: "in_transit", address: addr, invoiceNo: "INV-2026-003",
         createdAt: new Date("2026-04-22T16:00:00Z"),
         items: { create: [
           { productId: p2.id, productName: p2.name, unitPrice: Number(p2.price), quantity: 1, lineTotal: Number(p2.price) },
           { productId: p5.id, productName: p5.name, unitPrice: Number(p5.price), quantity: 1, lineTotal: Number(p5.price) },
         ]},
       },
+    });
+  }
+
+  console.log("Creating sample wishlists...");
+  const [w1, w2] = await prisma.$transaction([
+    prisma.wishlist.create({
+      data: { userId: customer.id, name: "Favorites" },
+    }),
+    prisma.wishlist.create({
+      data: { userId: customer.id, name: "Spring Picks" },
+    }),
+  ]);
+
+  const wishProducts = await prisma.product.findMany({
+    where: { sku: { in: ["JC-001", "SH-003", "FW-004"] } },
+  });
+
+  if (wishProducts.length > 0) {
+    await prisma.wishlistItem.createMany({
+      data: wishProducts.map((p, idx) => ({
+        wishlistId: idx % 2 === 0 ? w1.id : w2.id,
+        productId: p.id,
+      })),
     });
   }
 

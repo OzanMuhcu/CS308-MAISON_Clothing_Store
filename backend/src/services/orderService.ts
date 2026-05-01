@@ -77,7 +77,7 @@ export async function createOrder(userId: number, address: AddressSnapshot) {
       data: {
         userId,
         totalAmount,
-        status: "confirmed",
+        status: "processing",
         address: address as any,
         invoiceNo,
         items: { create: orderItemsData },

@@ -39,7 +39,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/wishlists", wishlistRoutes);
 app.use("/api/reviews", reviewRoutes);
 
 app.get("/api/health", (_req, res) => {

@@ -94,9 +94,18 @@ export interface Order {
 // Wishlist
 export interface WishlistItem {
   id: number;
+  wishlistId: number;
   productId: number;
   createdAt: string;
   product: Product;
+}
+
+export interface WishlistList {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  itemCount: number;
 }
 
 // Reviews
