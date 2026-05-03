@@ -1,190 +1,366 @@
-> Bu dosyayı GitHub reposunda `docs/` klasörü altına koyun.
+# CS308 — MAISON Clothing Store
+## Runbook & Troubleshooting (Sprint 3–4, Beginner Friendly)
 
-# CS308 ShopHub — Sprint 1 Runbook & Troubleshooting (Beginner Friendly)
+Bu doküman MAISON projesini (frontend + backend + PostgreSQL + Prisma) hiç bilmeyen birinin bile **sıfırdan güvenli şekilde çalıştırabilmesi** için hazırlanmıştır.
+Ayrıca Sprint 3–4 sırasında en çok yaşanan hataların (DB bağlantısı, seed, port, test, email, image) hızlı çözüm rehberini içerir.
 
-Bu doküman, sprint1/ codebase’ini (backend + frontend + PostgreSQL + Prisma) hiç bilmeyen birinin bile çalıştırabilmesi için hazırlanmış adım adım kılavuzdur. Hem Terminal üzerinden hem de VS Code üzerinden nasıl çalıştırılacağını, ayrıca en sık görülen hataların sebep–çözüm rehberini içerir. En sonda Docker’a kısa bir not vardır (opsiyonel).
+> Repo yapısı (güncel):
+> - `backend/` (Node + Express + TypeScript + Prisma + Jest)
+> - `frontend/` (React + Vite + TypeScript + Vitest)
+> - `docs/` (takım dokümantasyonları)
 
-## 0) Ön koşullar (5 dakika)
+---
 
-- macOS + Terminal erişimi
-- Node.js 20+ (kontrol: node -v)
-- npm (kontrol: npm -v)
-- PostgreSQL (Homebrew veya Postgres.app)
-- VS Code (opsiyonel ama önerilir)
-Not: Eğer Node sürümün 20’den küçükse Node 20+ kurmanız gerekir.
+# 0) Hızlı özet (en hızlı çalıştırma)
 
-## 1) Klasör yapısı: doğru yerdesin mi?
+1) PostgreSQL’i aç (Postgres.app / brew service)  
+2) DB oluştur: `maison_sprint3` (veya mevcut DB)  
+3) Backend: `.env` → migrate → seed → dev  
+4) Frontend: `.env` → dev  
+5) Testler: backend `npm test`, frontend `npm test`
 
-Proje kökünde şu yapıyı görmelisin: sprint1/backend ve sprint1/frontend.
+---
 
-Terminalde kontrol:
+# 1) Ön koşullar (5–10 dk)
 
-cd sprint1 && ls
+## macOS için gerekli araçlar
+- Node.js (tercihen **18+ / 20+**)  
+  Kontrol: `node -v`
+- npm  
+  Kontrol: `npm -v`
+- PostgreSQL (Postgres.app önerilir)
+- VS Code (opsiyonel)
+- GitHub Desktop (opsiyonel)
 
-- backend klasörü görünmeli
-- frontend klasörü görünmeli
-- README.md görünmeli
-## 2) PostgreSQL çalışıyor mu?
+> Not: `jest: command not found` görürsen %99 “backend’de npm install yapılmamıştır”.
 
-### 2.1 Postgres hazır mı kontrol
+---
+
+# 2) Repo klasöründe doğru yerde misin?
 
 Terminal:
+```bash
+cd CS308-MAISON_Clothing_Store
+ls
+```
 
+Şunları görmelisin:
+- `backend/`
+- `frontend/`
+- `docs/`
+- `README.md`
+
+---
+
+# 3) PostgreSQL + Yeni DB oluşturma (güvenli yöntem)
+
+## 3.1 PostgreSQL çalışıyor mu?
+Terminal:
+```bash
 pg_isready
+```
+`accepting connections` görmelisin.
 
-Çıktı 'accepting connections' olmalı.
+## 3.2 Yeni DB oluştur (önerilen)
+Sprint3’te DB snapshot + order/invoice işleri büyüdüğü için en temiz yöntem:
+- “Her sprint milestone” için ayrı DB veya en azından ayrı bir “fresh DB”.
 
-### 2.2 Veritabanını oluştur
-
-Bu proje örnek olarak clothingstore isimli DB kullanır.
-
-Terminal:
-
-createdb clothingstore
-
-Eğer 'already exists' derse sorun değil.
-
-## 3) Backend’i çalıştır (Terminal ile)
-
-### 3.1 Backend klasörüne gir ve env hazırla
+Örnek DB adı (siz kullanmışsınız): **maison_sprint3**
 
 Terminal:
+```bash
+createdb maison_sprint3
+```
 
-cd sprint1/backend
+Zaten varsa:
+- `already exists` → sorun değil.
 
-cp .env.example .env
-
-### 3.2 .env dosyasını doldur
-
-backend/.env içinde en kritik satır DATABASE_URL’dir.
-
-Şifresiz (Mac’te yaygın) örnek:
-
-DATABASE_URL="postgresql://KULLANICI_ADIN@localhost:5432/clothingstore?schema=public"
-
-KULLANICI_ADIN genelde Terminal’de 'whoami' çıktısıdır.
-
-JWT_SECRET için uzun bir string yaz (en az 32 karakter).
-
-### 3.3 Kurulum + Prisma adımları
-
-Sırayla çalıştır:
-
-npm install
-
-npx prisma generate
-
-npx prisma migrate dev --name init
-
-npm run db:seed
-
-### 3.4 Backend’i başlat
-
+## 3.3 Kullanıcı adını öğren (DB URL için)
 Terminal:
+```bash
+whoami
+```
+Örn: `polatcanpolat`
 
-npm run dev
+---
 
-Bu terminal açık kalmalı. Backend genelde http://localhost:4000 adresinde çalışır.
+# 4) Backend’i çalıştırma (Terminal)
 
-## 4) Backend hızlı kontrol (API)
-
-Yeni bir terminal aç ve şu kontrolleri yap:
-
-- curl http://localhost:4000/api/health
-- curl http://localhost:4000/api/products | head
-İkinci komutta ürün JSON’u görmelisin. Ürün yoksa seed çalışmamıştır veya DB bağlantısı yanlıştır.
-
-## 5) Frontend’i çalıştır (Terminal ile)
-
-### 5.1 Frontend klasörüne geç ve env hazırla
-
-Terminal:
-
-cd sprint1/frontend
-
-cp .env.example .env
-
-frontend/.env içinde VITE_API_URL benzeri bir satır varsa backend’e işaret ettiğinden emin ol. Örnek: VITE_API_URL=http://localhost:4000/api
-
-### 5.2 Kur ve çalıştır
-
-npm install
-
-npm run dev
-
-Tarayıcıda genelde http://localhost:5173 açılır.
-
-## 6) Sprint 1 Smoke Test (tek tek)
-
-Aşağıdaki sırayla kontrol et:
-
-- Landing açılıyor mu? (ürün grid görünüyor mu?)
-- Search/sort/filter çalışıyor mu? (en az fiyat sıralaması)
-- Bir ürün detayına giriliyor mu? (/products/:id)
-- Guest kullanıcı sepete ekleyebiliyor mu? (Navbar badge artıyor mu?)
-- Cart sayfasında qty/total doğru görünüyor mu?
-- Register çalışıyor mu? (başarılı olunca login veya home’a yönlenme)
-- Login çalışıyor mu? (demo kullanıcı ile veya kayıtlı kullanıcı ile)
-- /account gibi korumalı sayfa login olmadan açılmıyor mu?
-- Login sonrası guest cart korunuyor/sync oluyor mu?
-## 7) VS Code ile çalıştırma (kolay yöntem)
-
-### 7.1 Projeyi VS Code’da aç
-
-VS Code → File → Open Folder → sprint1 klasörünü seç.
-
-### 7.2 İki terminal aç (VS Code içinden)
-
-VS Code menü: Terminal → New Terminal
-
-1. terminal: backend
-
+## 4.1 Backend’e gir + env hazırlığı
+```bash
 cd backend
+cp .env.example .env
+```
 
+## 4.2 backend/.env: DATABASE_URL nasıl yazılır?
+Format:
+```text
+postgresql://USER:PASSWORD@HOST:PORT/DBNAME?schema=public
+```
+
+**Postgres.app çoğu zaman şifresizdir:**
+```env
+DATABASE_URL="postgresql://polatcanpolat@localhost:5432/maison_sprint3?schema=public"
+```
+
+Eğer Postgres’te kullanıcı/şifre varsa:
+```env
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/maison_sprint3?schema=public"
+```
+
+Diğer env:
+```env
+JWT_SECRET="en-az-32-karakter-uzun-random-string"
+PORT=4000
+```
+
+## 4.3 Install + Prisma (sıfırdan kurulum sırası)
+```bash
+npm install
+npx prisma generate
+npx prisma migrate dev
+npm run db:seed
+```
+
+> Notlar:
+> - `migrate dev` DB şemasını kurar/günceller  
+> - `db:seed` örnek ürünleri, kategorileri, demo data’yı basar  
+> - Seed çalışmazsa genelde “prisma.seed ayarı” eksiktir (aşağıdaki Troubleshooting’e bak)
+
+## 4.4 Backend’i başlat
+```bash
 npm run dev
+```
 
-2. terminal: frontend
+Backend genelde:
+- `http://localhost:4000`
+- API base: `http://localhost:4000/api`
 
+## 4.5 Backend hızlı health kontrol
+Yeni terminal aç:
+```bash
+curl -i http://localhost:4000/api/health
+curl -i http://localhost:4000/api/products
+```
+
+---
+
+# 5) Frontend’i çalıştırma (Terminal)
+
+## 5.1 Frontend’e gir + env hazırlığı
+```bash
+cd ../frontend
+cp .env.example .env
+```
+
+Frontend `.env` içinde genelde:
+```env
+VITE_API_URL=http://localhost:4000/api
+```
+
+## 5.2 Install + dev
+```bash
+npm install
+npm run dev
+```
+
+Tarayıcı:
+- `http://localhost:5173`
+
+---
+
+# 6) Test çalıştırma (Sprint 3–4 için kritik)
+
+## 6.1 Backend unit test (Jest)
+```bash
+cd backend
+npm test
+```
+
+Beklenen: PASS + toplam test sayısı.
+
+> `jest: command not found` → `cd backend && npm install` yap.
+
+## 6.2 Frontend test (Vitest)
+```bash
 cd frontend
+npm test
+```
 
+Not: React Router “Future Flag Warning” gibi uyarılar çıkabilir; test PASS ise genelde blocker değildir.
+
+---
+
+# 7) Sprint 3 Demo Checklist (hızlı manuel kontrol)
+
+## Auth + Cart
+- Guest olarak ürün ekle → cart doluyor mu?
+- Login/Register ol → guest cart item’ları **hemen** görünür mü?
+- Logout ol → guest cart “sıfırlanıyor” mu?
+- Tekrar login ol → user cart geri geliyor mu?
+
+## Checkout + Payment (Story 13/15)
+- Cart → Checkout (order summary) açılıyor mu?
+- Checkout → Payment route doğru çalışıyor mu?
+- Payment validation (card/expiry/cvv) hem FE hem BE tarafında çalışıyor mu?
+
+## Orders + Stock (Story 16)
+- Payment success → order oluşuyor mu?
+- Stock azalıyor mu?
+- Order success sonrası cart temizleniyor/finalize oluyor mu?
+
+## Invoice + Email (Story 17)
+- Payment success ekranında invoice görünüyor mu?
+- PDF oluşuyor mu?
+- Email gönderimi:
+  - Ethereal test inbox’a düşüyor mu?
+  - Gerçek mail’e gitmiyorsa “Email Troubleshooting” bölümüne bak
+
+## Address (Story 14)
+- Account/Profile içinde address update var mı?
+- Checkout’ta address snapshot logic doğru mu? (profil değişse eski order address değişmemeli)
+
+---
+
+# 8) En sık hatalar ve çözümleri (Troubleshooting)
+
+## 8.1 “Products yok / boş geliyor”
+Sebep:
+- Seed çalışmadı
+- DB yanlış
+- migrate yapılmadı
+
+Çözüm:
+```bash
+cd backend
+npx prisma migrate dev
+npm run db:seed
+```
+DB URL’yi kontrol et: `.env` içindeki DBNAME doğru mu?
+
+---
+
+## 8.2 “Port in use” (EADDRINUSE)
+- Backend: 4000
+- Frontend: 5173
+
+Portu kim kullanıyor?
+```bash
+lsof -i :4000
+lsof -i :5173
+```
+
+Çözüm:
+- O process’i kapat veya `.env` ile port değiştir
+
+---
+
+## 8.3 Prisma seed hatası: “add prisma.seed property…”
+Bu hata gelirse Prisma, seed komutunun nasıl çalıştırılacağını bilmiyor demektir.
+
+Çözüm (backend/package.json):
+- `prisma` alanı eklenmeli:
+```json
+"prisma": {
+  "seed": "tsx prisma/seed.ts"
+}
+```
+
+Sonra tekrar:
+```bash
+npm run db:seed
+```
+
+---
+
+## 8.4 “Can’t reach database server” / P1001 / P1003
+Sebep:
+- Postgres çalışmıyor
+- DATABASE_URL yanlış
+
+Çözüm:
+- `pg_isready`
+- `.env` DATABASE_URL kullanıcı/port/db adı doğru mu?
+- DB gerçekten var mı?
+```bash
+psql -l
+```
+
+---
+
+## 8.5 “Image unavailable / bazı ürünlerin fotosu yok”
+En sık sebep:
+- Seed’de URL/asset path hatalı
+- Frontend’te fallback image mantığı tetikleniyor
+
+Kontrol:
+- `/api/products` çıktısında `imageUrl` alanı dolu mu?
+- Dolu ama UI’da yoksa: frontend image render/host sorunu olabilir.
+- Boşsa: seed data düzeltilecek.
+
+---
+
+## 8.6 Email Ethereal’da var ama gerçek mail’e gelmiyor
+Bu beklenen bir durum olabilir:
+- Ethereal “test SMTP”dir, gerçek mailbox’a teslim etmez.
+- Gerçek mail istiyorsanız Gmail/Outlook SMTP veya SendGrid gibi provider gerekir.
+
+Sprint için güvenli yaklaşım:
+- Varsayılan: Ethereal + “Preview URL” linkini UI’da göster
+- Opsiyonel: gerçek SMTP’i `.env` ile aç/kapa
+
+---
+
+## 8.7 npm audit “moderate vulnerabilities”
+Bu uyarı “çalışmayı” genelde bozmaz.
+Körlemesine `npm audit fix --force` yapmak risklidir (breaking change).
+
+Sprint demo öncesi öneri:
+- Şimdilik dokunma
+- İstenirse later: audit raporu çıkarıp kontrollü güncelle
+
+---
+
+# 9) VS Code ile çalıştırma (en rahat yöntem)
+
+1) VS Code → Open Folder → `CS308-MAISON_Clothing_Store`
+2) Terminal → New Terminal (2 adet aç)
+3) Terminal-1:
+```bash
+cd backend
 npm run dev
+```
+4) Terminal-2:
+```bash
+cd frontend
+npm run dev
+```
 
-Not: İlk kez çalıştırıyorsan önce backend’de migrate/seed adımlarını (Bölüm 3.3) yap.
+---
 
-## 8) En sık hatalar ve hızlı çözümler
+# 10) Yardım isterken ne paylaşalım? (hızlı debug seti)
 
-### 8.1 'Can't reach database server' / ürünler gelmiyor
+- backend `.env` içindeki DATABASE_URL satırı (şifreyi XXXXX yap)
+- backend terminal error log
+- `curl -i http://localhost:4000/api/health` çıktısı
+- `curl -i http://localhost:4000/api/products` (ilk 20 satır)
+- tarayıcı console’daki hata
+- ilgili test çıktısı (jest/vitest)
+## Testleri Çalıştırma (Hızlı Kontrol)
 
-- Postgres çalışıyor mu? (pg_isready)
-- DATABASE_URL doğru mu? Kullanıcı adı doğru mu?
-- DB oluşturuldu mu? (createdb clothingstore)
-- Migrate + seed çalıştı mı? (prisma migrate, npm run db:seed)
-### 8.2 Port zaten kullanımda (EADDRINUSE)
+**Backend (Jest)**
+```bash
+cd backend
+npm test
+```
+Beklenen: `PASS ...` ve en sonda tüm testlerin geçtiğini görmelisiniz.
 
-- Backend portu: 4000, Frontend portu: 5173 (genelde)
-- Başka bir process bu portu kullanıyorsa kapat veya .env’de PORT’u değiştir
-- macOS port kontrol: lsof -i :4000
-### 8.3 CORS hatası / frontend 'Network Error'
+**Frontend (Vitest)**
+```bash
+cd frontend
+npm test
+```
+Beklenen: `Test Files ... passed` ve tüm testlerin geçtiğini görmelisiniz.
 
-- frontend .env’de API URL doğru mu? (http://localhost:4000/api)
-- Backend CORS origin sadece 5173’e izin veriyor olabilir; frontend portu değiştiyse backend CORS ayarlanmalı
-### 8.4 Prisma migrate hataları
+Not: React Router “Future Flag Warning” gibi uyarılar testleri **fail** ettirmez; sadece ileri sürüm davranış değişiklikleri için bilgilendirmedir.
 
-- DB boş değilse: npx prisma migrate dev sıfırdan init yapmaya çalışınca hata verebilir
-- Geliştirme sırasında en temiz yol: DB’yi düşür-yeniden oluştur (dropdb clothingstore; createdb clothingstore) ve migrate+seed tekrar
-### 8.5 Login/Register çalışmıyor
-
-- Önce backend API çalışıyor mu? (/api/health)
-- Sonra /api/auth/register ve /api/auth/login endpoint’lerini curl ile test et
-- Frontend API URL yanlışsa UI 'Something went wrong' diye kalır (asıl sebep network)
-## 9) Küçük Docker notu (opsiyonel)
-
-Docker zorunlu değil. Ancak ekipte herkesin Postgres kurulumuyla uğraşmaması için sadece PostgreSQL’i Docker ile çalıştırmak bazen çok rahatlatır. Bu projede Docker-compose varsa bile Sprint-1 için şart değildir. İleride ekip büyürse veya farklı bilgisayarlarda aynı ortamı garantilemek isterseniz Docker iyi bir seçenek olabilir.
-
-## 10) Yardım isterken ne gönderelim? (en hızlı debug)
-
-- backend/.env içindeki DATABASE_URL satırı (şifre varsa XXX yap)
-- backend terminal log çıktısı (hata satırları)
-- curl -i http://localhost:4000/api/health çıktısı
-- curl -i http://localhost:4000/api/products çıktısı (ilk 5 satır)
-- frontend tarayıcı console’daki hata (Network/CORS vb.)
