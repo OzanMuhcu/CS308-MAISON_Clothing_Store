@@ -277,3 +277,40 @@ Preserve the existing coding style and project structure.
 Do not make the code look unnecessarily advanced, over-engineered, or inconsistent with the rest of the project.
 
 When in doubt, inspect more files and ask before editing.
+
+## Sprint Context (Sprint 3 baseline + Sprint 4 focus)
+
+### Current baseline (must not regress)
+Sprint 3 core flows are considered stable and must remain working after any change:
+- Guest cart → login/register → guest items appear immediately in cart
+- Logout → guest view must not show authenticated cart
+- Login again → authenticated cart persists
+- Checkout → Payment (mock) → Order created
+- Stock decreases only after successful order
+- Cart clears/finalizes only after successful order
+- Invoice PDF downloadable; email delivery uses Ethereal fallback when SMTP is not configured
+
+If any change touches AuthContext / CartContext / cart routes / order routes, include a regression checklist and re-test these flows.
+
+### Sprint 4 scope (stories 19–34)
+Sprint 4 includes:
+- Wishlist (Stories 19–22): models + endpoints + UI (create/list/delete wishlists, add/remove items)
+- Reviews/Ratings/Comments (Stories 23–26): delivered-order eligibility, pending comments, moderation approve/reject, rating updates, rating-based sorting, approved-only display
+- Manager/Admin flows (Stories 27–34): sales_manager role + redirect, admin tabs (products/orders/refunds), discount email notifications, order filtering + revenue chart, refund/cancel rules + stock rollback
+
+When documenting Sprint 4:
+- Do not mark a story as "Implemented" unless verified in code with file paths.
+- Otherwise label as "Partially implemented" or "Not implemented".
+
+### Current tests (do not claim unless run)
+After any change, recommend:
+- cd backend && npm test
+- cd frontend && npm test
+Do not claim pass unless tests were actually run.
+
+### High-risk areas (inspect first)
+- backend/prisma/schema.prisma (models: orders, wishlist, reviews, roles)
+- backend/src/routes/cart.ts (guest sync/merge)
+- frontend/src/context/AuthContext.tsx and CartContext.tsx (merge timing)
+- backend invoice/email logic (Ethereal vs SMTP)
+- product images: seed data + ProductCard fallback
