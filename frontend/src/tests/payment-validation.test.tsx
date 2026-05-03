@@ -50,7 +50,11 @@ const mockAddress = JSON.stringify({
 });
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <MemoryRouter>{children}</MemoryRouter>;
+  return (
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {children}
+    </MemoryRouter>
+  );
 }
 
 beforeEach(() => {
@@ -79,29 +83,30 @@ beforeEach(() => {
 // ── Payment form fields ───────────────────────────────────────────────────────
 
 describe("Payment page — form fields", () => {
-  test("renders Cardholder Full Name label", () => {
+  test("renders Cardholder Full Name label", async () => {
     render(<Payment />, { wrapper: Wrapper });
-    expect(screen.getByLabelText(/cardholder full name/i)).toBeTruthy();
+    // findBy* lets the useEffect (card fetch) settle before asserting, silencing act() warnings.
+    expect(await screen.findByLabelText(/cardholder full name/i)).toBeTruthy();
   });
 
-  test("renders Card Number label", () => {
+  test("renders Card Number label", async () => {
     render(<Payment />, { wrapper: Wrapper });
-    expect(screen.getByLabelText(/card number/i)).toBeTruthy();
+    expect(await screen.findByLabelText(/card number/i)).toBeTruthy();
   });
 
-  test("renders Expiry label", () => {
+  test("renders Expiry label", async () => {
     render(<Payment />, { wrapper: Wrapper });
-    expect(screen.getByLabelText(/expiry/i)).toBeTruthy();
+    expect(await screen.findByLabelText(/expiry/i)).toBeTruthy();
   });
 
-  test("renders Security Code label", () => {
+  test("renders Security Code label", async () => {
     render(<Payment />, { wrapper: Wrapper });
-    expect(screen.getByLabelText(/security code/i)).toBeTruthy();
+    expect(await screen.findByLabelText(/security code/i)).toBeTruthy();
   });
 
-  test("submit button shows the cart total amount", () => {
+  test("submit button shows the cart total amount", async () => {
     render(<Payment />, { wrapper: Wrapper });
-    expect(screen.getByRole("button", { name: /pay \$49\.99/i })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /pay \$49\.99/i })).toBeTruthy();
   });
 });
 
@@ -110,7 +115,9 @@ describe("Payment page — form fields", () => {
 describe("Payment page — form validation", () => {
   test("shows cardholder name error when form is submitted empty", async () => {
     render(<Payment />, { wrapper: Wrapper });
-    fireEvent.click(screen.getByRole("button", { name: /pay/i }));
+    // Wait for async useEffect to settle before interacting.
+    const submitBtn = await screen.findByRole("button", { name: /pay/i });
+    fireEvent.click(submitBtn);
     await waitFor(() => {
       expect(screen.getByText(/cardholder full name is required/i)).toBeTruthy();
     });
@@ -118,9 +125,10 @@ describe("Payment page — form validation", () => {
 
   test("shows multiple Required errors when form is submitted empty", async () => {
     render(<Payment />, { wrapper: Wrapper });
-    fireEvent.click(screen.getByRole("button", { name: /pay/i }));
+    const submitBtn = await screen.findByRole("button", { name: /pay/i });
+    fireEvent.click(submitBtn);
     await waitFor(() => {
-      // cardNumber, expiry, and cvv each have required: "Required"
+      // cardNumber, expiry, and cvv each carry required: "Required"
       const requiredErrors = screen.getAllByText("Required");
       expect(requiredErrors.length).toBeGreaterThanOrEqual(1);
     });

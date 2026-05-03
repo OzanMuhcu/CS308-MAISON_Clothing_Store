@@ -25,7 +25,11 @@ const mockWishlists = [
 ];
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <MemoryRouter>{children}</MemoryRouter>;
+  return (
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {children}
+    </MemoryRouter>
+  );
 }
 
 // ── Default: API returns empty list ───────────────────────────────────────────

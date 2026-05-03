@@ -8,7 +8,7 @@ import Register from "../pages/Register";
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <CartProvider>{children}</CartProvider>
       </AuthProvider>

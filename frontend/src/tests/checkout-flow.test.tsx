@@ -67,7 +67,11 @@ const mockAddress = JSON.stringify({
 });
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <MemoryRouter>{children}</MemoryRouter>;
+  return (
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {children}
+    </MemoryRouter>
+  );
 }
 
 beforeEach(() => {
@@ -97,35 +101,36 @@ beforeEach(() => {
 // ── Checkout page ─────────────────────────────────────────────────────────────
 
 describe("Checkout page", () => {
-  test("renders Delivery Address heading", () => {
+  test("renders Delivery Address heading", async () => {
     render(<Checkout />, { wrapper: Wrapper });
-    expect(screen.getByRole("heading", { name: /delivery address/i })).toBeTruthy();
+    // findBy* waits for async useEffect (address fetch) to settle, silencing act() warnings.
+    expect(await screen.findByRole("heading", { name: /delivery address/i })).toBeTruthy();
   });
 
-  test("renders Order Summary section", () => {
+  test("renders Order Summary section", async () => {
     render(<Checkout />, { wrapper: Wrapper });
-    expect(screen.getByText(/order summary/i)).toBeTruthy();
+    expect(await screen.findByText(/order summary/i)).toBeTruthy();
   });
 
-  test("renders Continue to Payment button", () => {
+  test("renders Continue to Payment button", async () => {
     render(<Checkout />, { wrapper: Wrapper });
-    expect(screen.getByRole("button", { name: /continue to payment/i })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /continue to payment/i })).toBeTruthy();
   });
 
-  test("shows cart item name in the order summary panel", () => {
+  test("shows cart item name in the order summary panel", async () => {
     render(<Checkout />, { wrapper: Wrapper });
-    expect(screen.getByText("Classic Shirt")).toBeTruthy();
+    expect(await screen.findByText("Classic Shirt")).toBeTruthy();
   });
 });
 
 // ── Payment page ──────────────────────────────────────────────────────────────
 
 describe("Payment page", () => {
-  test("renders Payment Details heading when address is stored", () => {
+  test("renders Payment Details heading when address is stored", async () => {
     // Payment page reads checkoutAddress from sessionStorage; without it the
     // page redirects to /checkout before rendering the form.
     sessionStorage.setItem("checkoutAddress", mockAddress);
     render(<Payment />, { wrapper: Wrapper });
-    expect(screen.getByRole("heading", { name: /payment details/i })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /payment details/i })).toBeTruthy();
   });
 });
