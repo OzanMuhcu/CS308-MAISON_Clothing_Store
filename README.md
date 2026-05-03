@@ -55,7 +55,7 @@ CS308-MAISON_Clothing_Store/
 │   ├── prisma/
 │   │   ├── schema.prisma      Data models, enums, and relations
 │   │   ├── migrations/        Auto-generated migration SQL files
-│   │   └── seed.ts            Demo users, 42 products, sample orders and wishlists
+│   │   └── seed.ts            Demo users, demo products, sample orders and wishlists
 │   ├── src/
 │   │   ├── routes/            Express route handlers
 │   │   │   ├── auth.ts        Register, login, /me
@@ -68,7 +68,7 @@ CS308-MAISON_Clothing_Store/
 │   │   │   └── reviews.ts     Ratings, comments, moderation
 │   │   ├── services/          Business logic (auth, cart, order, product, invoice)
 │   │   ├── middleware/        JWT authentication guard
-│   │   └── tests/             Jest unit test suites (6 files, 65 tests)
+│   │   └── tests/             Jest unit test suites (6 files, 66 tests)
 │   ├── .env.example
 │   └── package.json
 ├── frontend/
@@ -377,7 +377,7 @@ This was bug DEV-114. The fix (in `AuthContext.tsx`) ensures the guest cart is s
    - `test(cart): add unit tests for syncCart`
 
 4. **Before opening a PR:**
-   - Run `cd backend && npm test` — all 65 tests must pass.
+   - Run `cd backend && npm test` — all 66 tests must pass.
    - Run `cd frontend && npm test` — all 26 tests must pass.
    - Manually verify the feature in the browser.
 
