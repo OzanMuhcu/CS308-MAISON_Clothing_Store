@@ -1,174 +1,282 @@
-> Place this file under `docs/` in the GitHub repository.
+# MAISON — AI Handoff Guide (EN)
+**Goal:** Help each teammate use their own AI assistant safely on the **current MAISON codebase** (Sprint 3 baseline + Sprint 4 work) without breaking anything.
 
-# AI HANDOFF GUIDE (English)
-CS308 ShopHub — Sprint-Ready Baseline (Sprint 1)
+This is the “one file” to share with teammates so they can:
+- understand what exists today,
+- know what must never regress,
+- implement Sprint 4 stories incrementally,
+- add tests and prepare clean commits/PRs.
 
-Purpose: This document helps teammates use their own AI assistant effectively on top of the shared Sprint-1 baseline. It explains the codebase structure, implemented features, project requirements, the sprint workflow we adopted, and strict rules for requesting updates without breaking the existing system. This guide is designed to be copied into an AI chat together with the project ZIP (sprint1.zip).
+Last updated: **2026-05-03**
 
-## 0. What you must do before asking AI to change anything
+---
 
-- Always attach the full project ZIP (sprint1.zip) to the AI chat. Do NOT paste only README.
-- Tell the AI: 'You must not remove existing behavior. Only add or modify what the new Sprint requires.'
-- Ask the AI to work in small patches (file-by-file changes), not a brand-new rewrite.
-- After any changes, you (the human) must run the Smoke Test checklist (Section 8).
-## 1. Project context & requirements (CS308 Online Store)
+## 0) Project snapshot (what this repo is)
+**Domain:** clothing e‑commerce store (CS308)
 
-This is an online store web application that includes a web frontend, an application web-server backend, and a database. Key requirements (full list varies by later sprints, but these fundamentals must always hold):
+**Stack**
+- Backend: Node.js + TypeScript + Express + Prisma + PostgreSQL
+- Frontend: React + TypeScript + Vite + Tailwind + React Router
+- Tests: Backend **Jest**, Frontend **Vitest + RTL**
 
-- Users can browse products and use the cart as guests (no login required).
-- Login is required before checkout/payment (payment is mock).
-- Products have stock; stock must be shown; out-of-stock products remain searchable but cannot be added to cart.
-- Search (name/description) and sorting (e.g., price) are required.
-- The UI is graded: it should look professional, attractive, and easy to use.
-- Security matters: passwords must be hashed; authentication/authorization must be correct.
-- The backend must connect to the DB and handle concurrent HTTP requests (later sprints add stronger concurrency rules).
-- Roles exist (customer, sales_manager, product_manager). Sprint 1 lays the foundation; later sprints expand role-based features.
-## 2. Sprint workflow (IMPORTANT: our sprint scopes are custom)
+**Golden rule:** Code is the source of truth. Docs may be outdated.
 
-Our sprint scopes are decided by the team (based on weekly TA guidance). Therefore, the AI must NOT assume a typical industry sprint roadmap. Each sprint request must explicitly list what is in-scope and out-of-scope.
+---
 
-- Sprint rule: main branch must always be runnable and demo-ready.
-- We extend from the Sprint-1 baseline. We do not 'rewrite everything' per sprint.
-- Each sprint change is implemented as a small set of tasks, merged via PR/branch workflow (recommended).
-- Before starting a new sprint, run the Smoke Test on main to ensure the baseline is intact.
-## 3. What Sprint 1 baseline already implements
+## 1) Non‑negotiable regression checklist (Sprint 3 core)
+These must still work after ANY change. If your AI touches these areas, you must re-test them.
 
-Sprint 1 baseline is a runnable foundation with a professional clothing-store UI and a secure backend. It is intentionally NOT a full finished e-commerce system yet.
+### Cart / Auth invariants
+1) **Guest cart → login/register → immediate merge**
+   - Guest adds items → login/register → items appear immediately in user cart (no “appears later after adding another item”).
 
-### 3.1 Features implemented
+2) **Logout isolation**
+   - After logout, guest view must NOT show the authenticated cart.
 
-- Landing page: apparel product grid with clean layout, search, sort, and basic filtering.
-- Product detail page: /products/:id
-- Guest cart: add/remove/update quantity, cart badge in navbar, cart totals.
-- Cart persistence: guest cart stored in localStorage; on login it syncs to server cart.
-- Authentication: Register + Login + JWT access token; protected /account page; /auth/me endpoint.
-- Seed data: demo users + apparel products in PostgreSQL via Prisma seed.
-- Basic backend tests (Jest) + basic frontend smoke tests.
-### 3.2 Explicitly not implemented yet (must remain out-of-scope unless the sprint requires it)
+3) **Logged‑in cart persistence**
+   - Login, add items, refresh/logout+login → cart still has those items.
 
-- Orders / checkout / payment flows
-- Invoices (PDF/email)
-- Discount engine / wishlists / notifications
-- Reviews and moderation
-- Delivery tracking statuses
-- Returns/refunds
-- Admin dashboards for roles
-## 4. Tech stack (must not change unless the team decides)
+### Purchase flow invariants
+4) **Checkout → Payment (mock)**
+   - Payment is fake; validate input but never store card data.
 
-- Frontend: React + TypeScript + Vite + Tailwind
-- Backend: Node.js + TypeScript + Express
-- Database: PostgreSQL
-- ORM: Prisma
-- Auth: bcrypt + JWT
-- Validation: Zod (backend)
-## 5. Codebase structure (what the AI should understand)
+5) **Order success effects**
+   - Order saved, stock decreases, cart clears/finalizes **only after order success** (transactional).
 
-The project is a monorepo-style folder layout:
+6) **Invoice**
+   - Invoice PDF downloadable and contains required fields.
+   - Email may use Ethereal fallback; real delivery requires SMTP env.
 
-    sprint1/
- backend/
- prisma/ (schema.prisma, seed.ts)
- src/
- server.ts
- config/ (env.ts, db.ts)
- middleware/ (auth.ts, errorHandler.ts)
- validators/ (auth.ts)
- services/ (authService.ts, productService.ts, cartService.ts)
- routes/ (auth.ts, products.ts, cart.ts)
- tests/ (auth.test.ts)
- frontend/
- src/
- services/api.ts
- context/ (AuthContext.tsx, CartContext.tsx)
- components/ (Navbar, ProductCard, ProtectedRoute, Footer)
- pages/ (Landing, ProductDetail, Cart, Login, Register, Account)
- tests/ (smoke.test.tsx)
-Architecture pattern: routes → services → DB (via Prisma). Frontend uses contexts (Auth/Cart) and a shared API client.
+### UI invariants
+7) **Out-of-stock behavior**
+   - Out-of-stock products still visible/searchable but cannot be added to cart.
+8) **Image reliability**
+   - Broken URLs should not break UI; show placeholder fallback.
 
-## 6. Non-negotiable rules for any AI-generated changes
+**After any change, run:**
+- Backend: `cd backend && npm test`
+- Frontend: `cd frontend && npm test`
 
-- Do NOT remove existing endpoints or UI flows unless the team explicitly requests it.
-- Do NOT rename API routes or response shapes without updating both backend and frontend.
-- Do NOT include node_modules in outputs or commits.
-- Keep .env.example files updated whenever new env vars are introduced.
-- Keep all changes minimal and incremental. Prefer modifying existing files over generating a new project.
-- Always add or update tests when touching auth/cart logic.
-- Preserve professional UI tone: no emojis, no childish copy, no 'AI vibe' slogans.
-## 7. How to ask AI for Sprint N updates (copy-paste templates)
+---
 
-### 7.1 Best template (patch-based)
+## 2) Repo map (what your AI must inspect first)
+Ask your AI to open and confirm these files before coding:
 
-    ROLE: You are a senior full-stack engineer on a sprint-based course project.
-CONTEXT: I uploaded sprint1.zip (baseline). Do NOT rewrite from scratch.
-GOAL: Implement Sprint N features listed below. Keep Sprint 1 behavior working.
-OUTPUT: Provide a change plan + file-by-file diffs/patches + new/updated tests + updated runbook lines.
-CONSTRAINTS:
-- Do not break existing smoke tests.
-- Do not change existing API contracts unless required.
-- Keep UI professional and consistent with MAISON clothing store look.
-SPRINT N REQUIREMENTS (IN-SCOPE):
-1) ...
-2) ...
-OUT OF SCOPE (MUST NOT IMPLEMENT):
-- ...
-DELIVERABLES:
-1) Summary of changes
-2) Exact files modified/added (paths)
-3) The full updated content of each modified file
-4) Any DB schema migrations + seed updates if needed
-5) Updated smoke test steps (if new features)
-### 7.2 If the AI tries to overbuild
+### Backend
+- `backend/src/server.ts` (routes registered under `/api`)
+- `backend/src/routes/*` (auth/products/cart/payment/orders/users/wishlist/reviews)
+- `backend/prisma/schema.prisma` (models + enums + relations)
+- `backend/prisma/seed.ts` (demo users/products/images/stock)
+- `backend/src/middleware/auth.ts` (JWT + role checks)
+- `backend/src/config/db.ts` (Prisma client)
 
-If the AI proposes advanced features you did not request, respond with:
+### Frontend
+- `frontend/src/App.tsx` (routes)
+- `frontend/src/services/api.ts` (API wrapper, token handling)
+- `frontend/src/context/AuthContext.tsx` (login/register + cart sync timing)
+- `frontend/src/context/CartContext.tsx` (guest vs user cart; localStorage; server cart)
+- `frontend/src/pages/*` (Landing/ProductDetail/Cart/Checkout/Payment/Orders/Account/Wishlist)
+- `frontend/src/components/*` (Navbar/ProductCard/ProtectedRoute)
 
-    Stop. This is out of scope for this sprint.
-Only implement the listed Sprint N requirements.
-Revert any unrelated additions and provide a minimal patch.
-## 8. Mandatory verification after any AI change (Smoke Test checklist)
+---
 
-After applying AI changes locally, ALWAYS run these checks in order:
+## 3) Sprint 3 recap (Stories 13–18)
+This is your stable baseline.
 
-- Backend starts (npm run dev) and /api/health returns OK.
-- GET /api/products returns non-empty list.
-- Landing page loads products and search/sort/filter still work.
-- Guest cart: add item → cart badge increments → cart page shows totals.
-- Register a new user → login works → /account is accessible when logged in.
-- Logout → /account redirects to login.
-- If cart sync exists: add items as guest → login → cart still contains items.
-If any step fails, the change must be treated as incomplete (do not merge).
+- **Story 13 — Checkout page + order summary**
+  - Cart → Checkout route; summary shown before payment.
 
-## 9. Debugging rules (what to give the AI when something breaks)
+- **Story 14 — Address selection/entry (readiness)**
+  - Default address (profile) vs one‑time address (checkout).
+  - **Order must store address snapshot** so past orders don’t change when profile changes.
 
-- Always paste the exact error message (terminal log or browser console).
-- Include: backend/.env (redact passwords), frontend/.env, and the command you ran.
-- Include: curl -i http://localhost:4000/api/health and curl -i http://localhost:4000/api/products (first lines).
-- If DB-related: include psql -d clothingstore -c 'SELECT current_user;' output.
-## 10. How to keep sprint changes merge-friendly (avoid chaos)
+- **Story 15 — Payment form + validation**
+  - Frontend + backend validation (16-digit card number, expiry MM/YY not past, 3-digit CVV). Mock only.
 
-Even with AI assistance, merges can break if multiple people edit the same files.
+- **Story 16 — Order creation + stock update + cart finalization**
+  - Create Order + OrderItems; decrement stock; clear cart only after successful order (transaction).
 
-- Prefer one 'feature branch' per sprint task (or per bundle).
-- Avoid editing shared core files (server.ts, api.ts, contexts) unless necessary.
-- If multiple tasks need the same shared file, coordinate merge order or assign one owner.
-- After each merge to main, rerun the Smoke Test.
-## 11. What the AI should NOT do (anti-patterns)
+- **Story 17 — Invoice PDF + email delivery**
+  - Generate invoice PDF; download/view; email via Ethereal/SMTP.
 
-- Generate a brand-new repo that ignores the uploaded ZIP.
-- Introduce new frameworks (Next.js, Redux, different ORM) without permission.
-- Commit or output node_modules, dist/, build/ folders.
-- Change ports/URLs silently (must document).
-- Remove seed data or demo accounts (makes demo fragile).
-## 12. Appendix: Quick run commands (for AI awareness)
+- **Story 18 — Landing + account enhancements**
+  - Better browsing/search/sort/category; professional header/account UI; stock display.
 
-The AI should keep these run steps valid unless it changes something explicitly:
+---
 
-    Backend (from sprint1/backend):
- npm install
- npx prisma generate
- npx prisma migrate dev --name init
- npm run db:seed
- npm run dev
-Frontend (from sprint1/frontend):
- npm install
- npm run dev
-End of guide. Use this document as the first message to your AI assistant, and always upload sprint1.zip in the same chat.
+## 4) Sprint 4 — COMPLETE story list (19–34)
+**Important:** Do not claim “implemented” unless you verify by file paths + manual test + unit tests.
+Use this as your Sprint 4 checklist.
+
+### Wishlist (Stories 19–22)
+**Story 19 — Wishlist Data Model and Backend**
+- DB models: Wishlist + WishlistItem
+- Backend endpoints: create/list/delete wishlists; add/remove items
+- Auth-only access
+
+**Story 20 — Wishlist Creation and Naming**
+- UI: create wishlists with custom name
+- Prevent duplicate wishlist names per user
+- Show wishlists on account page
+
+**Story 21 — Add and Remove Products in Wishlist**
+- Add-to-wishlist action on product pages
+- Remove products from wishlists
+- Allow adding out-of-stock products to wishlists
+
+**Story 22 — Wishlist Page and Product Listing**
+- Wishlist detail page shows saved products
+- Group by wishlist name
+- Navigate to product detail from wishlist
+
+### Reviews/Ratings/Comments (Stories 23–26)
+**Story 23 — Comment and Rating Eligibility Rules**
+- Only users who purchased AND received (delivered) can comment/rate
+- Eligibility checks for comment and rating are independent
+
+**Story 24 — Comment Submission with Pending Status**
+- Comment form on product page
+- Save comments as `pending`
+- Pending comments not public
+
+**Story 25 — Rating Submission and Product Rating Update**
+- Rating input on product page
+- Update average rating and rating count after valid save
+
+**Story 26 — Rating-Based Sorting and Accepted Comment Display**
+- Sort products by popularity/rating
+- Show ONLY accepted comments on product page
+- Product page refreshes after DB approval
+
+### Sales Manager / Admin (Stories 27–34)
+**Story 27 — Sales Manager Role and Admin Redirect**
+- Create/configure one sales manager user in seed
+- Sales manager login redirects to admin interface
+- Protect admin routes (sales manager only)
+
+**Story 28 — Sales Manager Product Management Tab**
+- Admin tab lists products
+- Edit product price
+- Edit discount value (default 0)
+
+**Story 29 — Wishlist Discount Notification by Email**
+- When discount updated, detect users whose wishlists contain product
+- Trigger email notification during product edit flow
+
+**Story 30 — Sales Manager Orders Tab and Customer Information**
+- Admin orders tab lists all orders
+- Show customer info next to each order
+- Reuse order/invoice structures
+
+**Story 31 — Invoice PDF Download and Order Date Filtering**
+- Admin orders tab: invoice PDF download
+- Filter orders by start/end date
+
+**Story 32 — Revenue Chart for Selected Date Range**
+- Calculate revenue for chosen date range
+- Render chart (x-axis date, y-axis revenue)
+- Refresh chart when filters change
+
+**Story 33 — Refund Request Tab and Refund Review Flow**
+- Admin tab lists refund requests with order+user info
+- Accept / reject refund requests
+
+**Story 34 — Cancel / Refund Rules and Stock Update Logic**
+- Direct cancellation allowed for `processing`
+- Refund requests only for delivered orders within 30 days
+- Increase stock when cancellation/refund accepted
+
+---
+
+## 5) How to ask an AI to implement a ticket (safe template)
+Copy/paste this template to your AI:
+
+**Ticket:** <Story ID or Bug ID>  
+**Goal:** <1–2 sentences>  
+**Acceptance criteria:**  
+- <bullet list>  
+**Scope boundary (must not break):** Sprint 3 regression checklist (Section 1)  
+**Files likely involved:**  
+- Backend: <routes/services/schema>  
+- Frontend: <pages/components/context>  
+**Tests required:**  
+- Backend Jest (mock Prisma; no real DB)  
+- Frontend Vitest (mock API; no real network)  
+**Output required:**  
+- Patch Map (files changed + reason)  
+- Manual test checklist  
+- Commands to run tests  
+
+**Extra rule:** Do not create parallel logic inside tests; prefer importing validators/services.
+
+---
+
+## 6) Testing & quality requirements
+### Backend unit tests (Jest)
+- Prefer mocking Prisma (`jest.mock` on the Prisma client module).
+- Add tests for:
+  - route validation (Zod)
+  - service logic (transactions / stock rules)
+  - role/ownership access controls
+
+### Frontend tests (Vitest + RTL)
+- Do not call real backend.
+- Mock `frontend/src/services/api.ts`.
+- Prefer `findBy*` / `waitFor` for async UI effects.
+- Avoid flaky timers/sleeps.
+
+**Commands**
+- Backend: `cd backend && npm test`
+- Frontend: `cd frontend && npm test`
+
+---
+
+## 7) Commit slicing (so each teammate commits only their part)
+When multiple people own different stories, ask AI to include a **Patch Map**.
+
+### Patch Map format
+- **Story XX Patch Map**
+  - file path → what changed (1 line)
+
+Then each teammate commits only their story’s files.
+
+---
+
+## 8) Common Sprint 4 pitfalls (what breaks the project)
+1) **Delivered eligibility lock**
+   - If reviews require “delivered” but there is no way to mark delivered, ratings/comments will be blocked.
+   - Solution: implement a safe admin endpoint to set order status OR adjust eligibility rules per course instructions.
+
+2) **CORS / port mismatch**
+   - Strict CORS can break product loading when Vite picks a new port.
+   - Use a dev-friendly localhost strategy or document required ports.
+
+3) **Image reliability**
+   - Seed URLs can fail → add `onError` placeholder fallback and validate seed imageUrl values.
+
+4) **Payment scope creep**
+   - Never store or process real card data.
+
+---
+
+## 9) Running the project (reference)
+Backend:
+```bash
+cd backend
+cp .env.example .env
+npm install
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+npm run dev
+```
+
+Frontend:
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+---

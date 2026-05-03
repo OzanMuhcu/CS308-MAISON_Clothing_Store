@@ -1,107 +1,215 @@
-> Bu dosyayı GitHub reposunda `docs/` klasörü altına koyun.
+# CS308 — MAISON Clothing Store
+## Team Guideline (Sprint 3–4 sonrası: Stabil Main + Sprint Disiplini)
 
-# CS308 ShopHub (MAISON) — Sprint 1 Stabilization & Team Guideline
+Bu doküman, MAISON projesinde ekip içi **ortak çalışma standardını** belirler. Amaç:
+- `main` her zaman **demo-ready** kalsın,
+- sprint’ler ilerlerken **regression** (eski akışların bozulması) yaşanmasın,
+- herkesin katkısı (commit / test / bug / backlog) **görünür** olsun,
+- yeni gelen biri “nereden başlayacağını” bilsin.
 
-Bu doküman, ekibin Sprint-1 için nasıl “çalışan ve üzerine inşa edilebilir” bir temel oluşturduğunu; geçmişte yaşanan problemleri, neden bu yaklaşıma geçildiğini, şu anki kod tabanının (sprint1/ repo) mantığını ve bundan sonra nasıl ilerlenmesi gerektiğini ekip içi ortak bir referans olarak anlatır. Amaç: herkesin aynı sayfada olması ve Sprint 2+ geliştirmelerinde tekrar aynı entegrasyon krizlerinin yaşanmamasıdır.
+> **Kaynak doğruluk sırası:**  
+> 1) Kod (backend/ frontend/)  
+> 2) Root README.md  
+> 3) `docs/` (bu dokümanlar)  
+> Dokümanlar zamanla eskiyebilir; şüphede kalınca kodu kontrol edin.
 
-## 1. Kısa Özet
+---
 
-- Sprint-1’de hedef: profesyonel bir landing + güvenli register/login + auth temeli + guest cart + örnek ürünler ve temel ürün listeleme.
-- Geçmişteki ana sorun: “bitmiş/full proje kodu” ile sprint-scope uyuşmadığı için entegrasyon ve çalıştırma (DB/env) sürekli patladı.
-- Çözüm: Sprint-1’e uygun, temiz, koşulabilir ve Sprint 2+ için genişletilebilir bir baseline codebase oluşturmak.
-- Son durum: Backend + Frontend birlikte çalışıyor; DB seed ürünleri geliyor; register/login token üretiyor; cart çalışıyor; smoke test ile doğrulandı.
-## 2. Geçmişte Yaşanan Problemler (Neden Yeni Bir Yaklaşım? )
+# 1) Kısa özet (bugünkü durum)
 
-Sprint-1’i “tam proje” kodundan kırpmaya çalışmak şu sorunları üretti:
+MAISON, CS308 kapsamında geliştirilen bir **kıyafet e-ticaret** uygulamasıdır:
+- **Backend:** Node + TS + Express + Prisma + PostgreSQL  
+- **Frontend:** React + TS + Vite + Tailwind  
+- **Test:** Backend Jest, Frontend Vitest
 
-- Scope karmaşası: Sprint-1’de görünmemesi gereken ileri modüller (invoice/discount/review vb.) kod tabanına karıştı; neyin gösterilip gösterilmeyeceği belirsizleşti.
-- Çalıştırma krizi: Postgres bağlantısı, env değişkenleri ve migration/seed adımları net olmadığı için ürünler gelmedi, login/register çalışmadı.
-- Entegrasyon krizi: Herkesin farklı yerden/branch’ten ilerlemesi main’i kırdı; “demo için bir yerden çalışsın” yaklaşımı teknik borcu büyüttü.
-- UI kalitesi: Sprint-1’de bile arayüzün ‘derli toplu ve profesyonel’ görünmesi bekleniyordu; hızlı üretilen UI’lar ‘AI vibe’ verdi.
-## 3. Alınan Karar: Sprint-1 Baseline’ı Önce Stabilize Etmek
+Sprint 3 ile birlikte temel satın alma akışı tamamlandı:
+- Cart → Checkout → Payment (mock)
+- Order oluşturma + stock düşme + cart finalize
+- Invoice PDF + email (Ethereal / SMTP)
 
-Sprint bazlı geliştirmede en kritik prensip: Sprint 2+ eklemeleri yapılacaksa, önce Sprint-1’in sağlam bir temel olarak sabitlenmesi gerekir. Bu nedenle hedef, ‘tek seferde bitmiş proje’ değil; ‘Sprint-1 seviyesinde koşulabilir, anlaşılır, testli ve genişletilebilir iskelet’ oldu.
+Sprint 4 odağı:
+- Wishlist
+- Reviews / Ratings / Comments (pending/approve)
+- Role bazlı manager akışları (sprint scope’a göre)
+- Bug fix’ler + test aktivitesi
 
-## 4. Planlama Aşaması: Ne İstiyoruz?
+---
 
-Sprint-1 kapsamı ekip tarafından netleştirildi. Temel ihtiyaçlar:
+# 2) Neden bu guideline? (geçmişte yaşananlar)
 
-- Landing: ürün grid’i + arama/sıralama/filtre temel seviyede, profesyonel UI.
-- Auth: register + login + /me endpoint + JWT tabanlı auth foundation.
-- Guest cart: login olmadan sepete ekleme; login olunca sepetin korunması (sync).
-- Seed data: kıyafet ürünleri ve demo kullanıcılar.
-- Runbook: ‘hiç bilmiyoruz’ varsayımıyla adım adım kurulum/çalıştırma.
-- Smoke test: herkesin çalıştırdıktan sonra tek tek doğrulayacağı kontrol listesi.
-## 5. Yeni Kod Tabanı: Yapı ve Mantık
+İlk sprintlerde ana problemler:
+- “Tek doğru çalışan baseline” yoktu; backend/frontend uyumu bozuluyordu.
+- DB/env/migrate/seed adımları net olmadığı için “ürün yok / login yok” gibi krizler yaşandı.
+- GitHub’ta herkes aynı anda main’e dokununca **main kırıldı**.
+- “Bitmiş proje kodunu kırpma” denemeleri integration’ı daha da zorlaştırdı.
 
-Repo yapısı monorepo şeklindedir: /backend ve /frontend ayrı çalışır. Backend TypeScript + Express; DB Prisma + PostgreSQL; Frontend Vite + React + Tailwind.
+Bu yüzden yaklaşım şu oldu:
+- Önce çalışan, temiz ve genişletilebilir bir baseline,
+- Sonra sprint’ler branch/PR ile güvenli şekilde eklenir.
 
-### 5.1 Backend (genel akış)
+---
 
-- src/server.ts: Express uygulaması, route mount, middleware ve CORS.
-- src/routes/: auth, products, cart route tanımları.
-- src/services/: iş mantığı (authService, productService, cartService).
-- src/validators/: Zod şemaları (özellikle auth).
-- src/middleware/: JWT auth guard, error handler.
-- prisma/schema.prisma + seed.ts: DB modelleri ve örnek veri.
-### 5.2 Frontend (genel akış)
+# 3) Ana prensipler (değişmez kurallar)
 
-- src/services/api.ts: backend’e istek atan ortak client (token ekleme vb.).
-- src/context/AuthContext.tsx: login/register/logout + auth state yönetimi.
-- src/context/CartContext.tsx: guest cart (localStorage) + server cart senkronizasyonu.
-- src/pages/: Landing, ProductDetail, Cart, Login, Register, Account.
-- src/components/: Navbar (cart badge), ProtectedRoute vb.
-## 6. Neden Bu Kod “Üzerine İnşa Edilebilir”?
+## 3.1 Main kutsaldır
+- `main` = “bugün demo varsa buradan demo alınır”
+- `main` kırık kalamaz.
+- PR’siz büyük değişiklik main’e girmez (acil hotfix hariç).
 
-Sprint-2’ye geçerken en büyük risk, temel taşların (auth, DB, cart) dağınık olmasıdır. Bu codebase bunu engelleyecek şekilde katmanlı (routes → services → DB) kurulmuştur. İleri sprintlerde (orders/checkout/admin paneller) eklenecek kodlar, mevcut servis/route yapısına doğal şekilde eklenebilir.
+## 3.2 Sprint = küçük adımlar + test + dokümantasyon
+Her story/bug için:
+- küçük parçalar halinde geliştirme,
+- unit test ekleme,
+- README/docs güncelleme,
+- kısa manual test checklist.
 
-## 7. Çalıştırma ve Doğrulama (Sprint-1)
+## 3.3 Regression (eski akışları bozmak) en büyük risk
+Sprint 3 sonrası **asla bozulmaması gereken akışlar**:
 
-Sprint-1’de “çalışıyor” demek için iki şey şarttır: (1) backend + DB doğru kuruldu, (2) frontend backend’e doğru URL ile erişiyor. Bu yüzden ekip içinde standart doğrulama adımları uygulanmalıdır.
+1) Guest cart → login/register sonrası **hemen** merge olmalı (gecikmeli “sonradan gelme” yok)  
+2) Logout sonrası guest view’da user cart görünmemeli  
+3) Login tekrar → user cart persistence çalışmalı  
+4) Out-of-stock ürünler aranabilir ama sepete eklenemez  
+5) Checkout/Payment mock: kart bilgisi DB’ye yazılmaz  
+6) Order success: stock düşer, cart sadece success sonrası temizlenir  
+7) Invoice PDF indirilebilir olmalı; email testte Ethereal olabilir
 
-### 7.1 Standart çalışma sırası
+Bu maddeler demo öncesi manuel checklist’te kontrol edilir.
 
-- PostgreSQL çalışıyor mu? (pg_isready)
-- DB oluşturuldu mu? (createdb clothingstore)
-- Backend: npm install → prisma generate → migrate → seed → npm run dev
-- Frontend: npm install → npm run dev
-- Kontrol: /api/health ve /api/products JSON dönüyor mu?
-- UI Smoke: landing ürünleri gösteriyor mu? register/login token üretiyor mu? cart badge artıyor mu?
-### 7.2 Sprint-1 Smoke Test Checklist (özet)
+---
 
-- Landing açılır; ürünler listelenir; search/sort/filter çalışır.
-- Ürün detay sayfası açılır (SKU/stock/price).
-- Guest kullanıcı sepete ekler; cart badge artar; cart sayfasında total görünür.
-- Register başarılı olur; login token döner; /account protected route çalışır.
-- Login sonrası guest cart korunur/senkronize olur.
-## 8. GitHub ile İlgili Endişeler ve Neden Bu Yaklaşım Daha Güvenli?
+# 4) Sprint başı → sprint sonu çalışma akışı
 
-Geçmişteki en büyük problem, herkesin aynı anda main’e dokunması ve projeyi kırmasıydı. Bu nedenle Sprint-1 baseline sabitlenince, bundan sonra ilerlemek için önerilen yaklaşım: main’i her zaman çalışır tutmak ve herkesin branch/PR üzerinden katkı yapmasıdır. Bu doküman GitHub komutlarını detaylandırmaz; GitHub için ayrı bir rehber hazırlanacaktır.
+## 4.1 Sprint başı (1 saatlik standart)
+1) Sprint backlog’u netleşir (TA/instructor ile).  
+2) Her story/bug için GitHub Issue açılır (label: backend/frontend/test/docs/bug).  
+3) “Owner” atanır (1 kişi).  
+4) Her story için:
+   - backend değişikliği var mı?
+   - frontend değişikliği var mı?
+   - DB migration gerekiyor mu?
+   - test gerekecek mi?
+   hızlıca yazılır.
 
-## 9. Eskiye Göre Avantajlar / Olası Dezavantajlar
+## 4.2 Sprint içinde (günlük güvenli akış)
+1) Main güncelle:
+```bash
+git checkout main
+git pull origin main
+```
 
-### Avantajlar
+2) Story için branch aç:
+- `sprint4/story19-wishlist`
+- `sprint4/bug114-cart-merge`
 
-- Koşulabilir tek kaynak (single source of truth): herkes aynı baseline’dan başlar.
-- Daha az entegrasyon krizi: scope belli, runbook belli, smoke test belli.
-- Sprint 2+ için temiz genişleme: yeni feature eklemek daha kolay.
-- UI ve backend birlikte doğrulanmış: demo riski azalır.
-### Olası dezavantajlar (gerçekçi)
+3) Kod değiştir → test et → commit et:
+- `cd backend && npm test`
+- `cd frontend && npm test`
 
-- Kurulum adımlarına (DB_URL, migrate/seed) dikkat edilmezse tekrar ‘ürün yok / login yok’ gibi sorunlar yaşanabilir.
-- Ekip GitHub branch/PR disiplinine uymazsa main yine kırılabilir (bu yüzden GitHub rehberi kritik).
-## 10. Bundan Sonra Nasıl İlerleyeceğiz? (Sprint 2+ yaklaşımı)
+4) Push + PR:
+- PR açıklamasında: “ne değişti, nasıl test edildi”
 
-Sprint 2 ve sonrası için kapsam her hafta güncellenecek. Ancak genel yöntem sabit kalmalı:
+5) Merge sonrası:
+- herkes `git pull` yapar
 
-- Yeni sprint başlamadan önce: main’in çalıştığından emin ol (smoke test).
-- Sprint backlog maddelerini küçük parçalara böl (UI, API, DB migration, test).
-- Her parça için branch aç → küçük commit’ler → PR → merge.
-- Merge sonrası: herkes main’i çekip (pull) kendi branch’ini günceller.
-- Her sprint sonunda: kısa demo + kısa retro; hangi teknik borç kaldı not edilir.
-## 11. Ek: Ekip İçin ‘Bilmiyorsan Bile’ Mini Kılavuz
+## 4.3 Sprint sonu (demo öncesi)
+- Demo checklist (bkz Bölüm 8) uygulanır.
+- “Stable checkpoint” tag/release alınabilir (örn `v0.4-stable-sprint4`).
 
-- Bir şey çalışmıyorsa ilk bakılacak yer: backend terminal log’u + /api/health + /api/products.
-- Ürünler gelmiyorsa %90: migrate/seed çalışmamıştır ya da DB_URL yanlış.
-- Login çalışmıyorsa önce curl ile /auth/login test et; sonra UI tarafını kontrol et.
-- CORS hatası görürsen frontend’in portu ve VITE_API_URL kontrol edilir.
+---
+
+# 5) Rollerin sorumlulukları (pratik)
+
+## 5.1 Scaffold / Integration Owner (gerekirse)
+- Büyük birleşmelerde (birçok PR) merge sırasını yönetir.
+- Main’i kırmayacak şekilde integration branch kullanabilir.
+
+## 5.2 Story Owner
+- Kendi story’sinin:
+  - implementation’ı
+  - testleri
+  - docs/README güncellemeleri
+  - manual test checklist’i
+  sorumluluğunu taşır.
+
+## 5.3 Reviewer
+- PR’ı hızlıca kontrol eder:
+  - testler çalışıyor mu?
+  - gereksiz dosya girmiş mi? (.env, node_modules)
+  - eski akışları bozuyor mu?
+
+---
+
+# 6) “Definition of Done” (Done demek ne demek?)
+
+Bir story/bug “DONE” sayılması için:
+1) Feature çalışıyor (UI + API akışı)  
+2) Unit test eklendi (veya gerekçesi yazıldı)  
+3) Regression yok (Sprint 3 kritik akışlar bozulmadı)  
+4) README/docs gerekliyse güncellendi  
+5) PR’da kısa test planı var
+
+---
+
+# 7) Development Activities (ders puanı için görünürlük)
+
+Ders değerlendirmesinde genelde şu aktiviteler görünür olmalı:
+- Commit (kişi başı hedef: **≥5**)
+- Unit test (demo başı hedef: **≥25 yeni test case**)
+- Bug report (Issue)
+- Backlog item’ı (Issue/Project board)
+
+**Doğru yöntem:**  
+“Boş commit spam” yerine küçük ama gerçek işler:
+- test ekleme
+- bug fix
+- docs update
+- küçük UI polish
+
+---
+
+# 8) Demo Checklist (10 dakikalık hızlı kontrol)
+
+## Backend hızlı kontrol
+- `GET /api/health` OK
+- `GET /api/products` boş değil
+- `cd backend && npm test` PASS
+
+## Frontend hızlı kontrol
+- Landing ürünleri gösteriyor
+- Search + sort + category filter çalışıyor
+- Cart add/remove/qty çalışıyor
+- Login/register çalışıyor
+- `cd frontend && npm test` PASS
+
+## Sprint 3 kritik akış
+- Guest → cart add
+- Login → cart merge hemen
+- Checkout → Payment → Success
+- Order oluşuyor, stock düşüyor, cart temizleniyor
+- Invoice PDF indiriliyor
+- Email: Ethereal preview log geliyor (real SMTP yoksa normal)
+
+---
+
+# 9) Dokümantasyon kuralı (docs/ nasıl güncellenecek?)
+
+- Root README: “kullanıcı/TA repo ana sayfaya girince” görür.
+- docs/: takım içi rehberler (runbook, github guide, code map).
+- Değişiklik yapınca docs commit’i ayrı atılabilir:
+  - `docs: update runbook for sprint4`
+  - `docs: update code map`
+
+---
+
+# 10) Sık hatalar (mini rehber)
+
+- Ürün yok → migrate/seed yapılmamış veya DB_URL yanlış
+- jest yok → backend npm install yapılmamış
+- invoice email gerçek mail’e gelmiyor → Ethereal test; SMTP env gerekir
+- cart merge gecikmeli → AuthContext sync sırası bozulmuş olabilir
+
+---
+
+### Son güncelleme
+Bu guideline en son **2026-05-03** tarihinde güncellenmiştir.
