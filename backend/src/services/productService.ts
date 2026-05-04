@@ -36,6 +36,10 @@ export async function listProducts(query: {
     sku: p.sku,
     imageUrl: p.imageUrl,
     category: p.category,
+    model: p.model,
+    serialNumber: p.serialNumber,
+    warrantyStatus: p.warrantyStatus,
+    distributorInfo: p.distributorInfo,
     avgRating: p.avgRating,
     ratingCount: p.ratingCount,
   }));
@@ -54,6 +58,10 @@ export async function getProduct(id: number) {
     sku: product.sku,
     imageUrl: product.imageUrl,
     category: product.category,
+    model: product.model,
+    serialNumber: product.serialNumber,
+    warrantyStatus: product.warrantyStatus,
+    distributorInfo: product.distributorInfo,
     avgRating: product.avgRating,
     ratingCount: product.ratingCount,
   };

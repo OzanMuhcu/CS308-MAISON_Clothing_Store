@@ -68,17 +68,21 @@ model UserAddress {
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String   @default("")
-  price       Decimal  @db.Decimal(10, 2)
-  stockQty    Int      @default(0) @map("stock_qty")
-  sku         String   @unique
-  imageUrl    String   @default("") @map("image_url")
-  category    String   @default("")
-  avgRating   Float    @default(0) @map("avg_rating")
-  ratingCount Int      @default(0) @map("rating_count")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  name            String
+  description     String   @default("")
+  price           Decimal  @db.Decimal(10, 2)
+  stockQty        Int      @default(0) @map("stock_qty")
+  sku             String   @unique
+  imageUrl        String   @default("") @map("image_url")
+  category        String   @default("")
+  model           String   @default("")
+  serialNumber    String   @unique @map("serial_number")
+  warrantyStatus  String   @default("None") @map("warranty_status")
+  distributorInfo String   @default("") @map("distributor_info")
+  avgRating       Float    @default(0) @map("avg_rating")
+  ratingCount     Int      @default(0) @map("rating_count")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   cartItems     CartItem[]
   orderItems    OrderItem[]

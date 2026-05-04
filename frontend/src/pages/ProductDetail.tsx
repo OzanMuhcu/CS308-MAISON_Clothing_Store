@@ -435,10 +435,32 @@ export default function ProductDetail() {
                 {outOfStock ? "Out of Stock" : lowStock ? `Only ${product.stockQty} left` : `${product.stockQty} in stock`}
               </span>
             </div>
-            <div className="flex justify-between py-3 text-sm">
+            <div className="flex justify-between py-3 border-b border-brand-100 text-sm">
               <span className="text-brand-500">Category</span>
               <span className="text-brand-900">{product.category}</span>
             </div>
+            {product.model && (
+              <div className="flex justify-between py-3 border-b border-brand-100 text-sm">
+                <span className="text-brand-500">Model</span>
+                <span className="text-brand-900">{product.model}</span>
+              </div>
+            )}
+            <div className="flex justify-between py-3 border-b border-brand-100 text-sm">
+              <span className="text-brand-500">Serial Number</span>
+              <span className="text-brand-900 font-mono text-xs">{product.serialNumber}</span>
+            </div>
+            {product.warrantyStatus && product.warrantyStatus !== "None" && (
+              <div className="flex justify-between py-3 border-b border-brand-100 text-sm">
+                <span className="text-brand-500">Warranty</span>
+                <span className="text-brand-900">{product.warrantyStatus}</span>
+              </div>
+            )}
+            {product.distributorInfo && (
+              <div className="flex justify-between py-3 text-sm">
+                <span className="text-brand-500">Distributor</span>
+                <span className="text-brand-900 text-right max-w-[60%]">{product.distributorInfo}</span>
+              </div>
+            )}
           </div>
 
           {/* Add to cart */}
