@@ -107,17 +107,20 @@ export async function sendInvoiceEmail(
   data: InvoiceData,
   pdfBuffer: Buffer
 ): Promise<{ previewUrl?: string }> {
+  const usingRealSmtp = Boolean(env.smtp.host && env.smtp.user);
+  console.log(`[Email] Sending invoice ${data.invoiceNo} via ${usingRealSmtp ? "real SMTP (" + env.smtp.host + ")" : "Ethereal (test)"} …`);
+
   try {
     let transporter: nodemailer.Transporter;
     let isEthereal = false;
     let fromEmail: string;
 
-    if (env.smtp.host && env.smtp.user) {
-      // Use configured SMTP
+    if (usingRealSmtp) {
+      // Use configured SMTP (e.g. Gmail: host=smtp.gmail.com, port=587)
       transporter = nodemailer.createTransport({
         host: env.smtp.host,
         port: env.smtp.port,
-        secure: env.smtp.port === 465,
+        secure: env.smtp.port === 465,   // true for 465, false for 587/TLS
         auth: { user: env.smtp.user, pass: env.smtp.pass },
       });
       fromEmail = env.smtp.from;
@@ -151,11 +154,14 @@ export async function sendInvoiceEmail(
 
     if (isEthereal) {
       const previewUrl = nodemailer.getTestMessageUrl(info) as string;
+      console.log(`[Email] Ethereal preview URL: ${previewUrl}`);
       return { previewUrl };
     }
 
+    console.log(`[Email] Invoice sent via real SMTP to ${data.customerEmail} (messageId: ${info.messageId})`);
     return {};
   } catch (err) {
+    console.error(`[Email] Failed to send invoice ${data.invoiceNo} (${usingRealSmtp ? "real SMTP" : "Ethereal"}):`, err);
     return {};
   }
 }

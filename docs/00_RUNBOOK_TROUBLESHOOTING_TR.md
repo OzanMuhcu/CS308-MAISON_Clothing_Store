@@ -301,13 +301,43 @@ Kontrol:
 ---
 
 ## 8.6 Email Ethereal’da var ama gerçek mail’e gelmiyor
-Bu beklenen bir durum olabilir:
-- Ethereal “test SMTP”dir, gerçek mailbox’a teslim etmez.
-- Gerçek mail istiyorsanız Gmail/Outlook SMTP veya SendGrid gibi provider gerekir.
 
-Sprint için güvenli yaklaşım:
-- Varsayılan: Ethereal + “Preview URL” linkini UI’da göster
-- Opsiyonel: gerçek SMTP’i `.env` ile aç/kapa
+**Varsayılan davranış:** `SMTP_HOST` veya `SMTP_USER` boşsa → Ethereal test hesabı kullanılır.
+Backend konsolunda şunu görürsünüz:
+```
+[Email] Sending invoice INV-xxxx via Ethereal (test) …
+[Email] Ethereal preview URL: https://ethereal.email/message/…
+```
+Bu URL’yi tarayıcıda açınca email önizlemesini görebilirsiniz.
+
+**Gmail ile gerçek mail göndermek için:**
+
+1. Google hesabında 2 Adımlı Doğrulama’yı aç.
+2. Google Hesabı → Güvenlik → Uygulama Şifreleri → yeni şifre oluştur (isim: “MAISON”).
+   16 karakterlik şifre alırsınız — boşluksuz kullanın.
+3. `backend/.env` dosyasını şu şekilde düzenle:
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=sizin-adresiniz@gmail.com
+SMTP_PASS=abcdabcdabcdabcd
+SMTP_FROM=”MAISON <sizin-adresiniz@gmail.com>”
+```
+4. Backend’i yeniden başlat: `npm run dev`
+
+**Başarı logları (backend konsolunda):**
+```
+[Email] Sending invoice INV-xxxx via real SMTP (smtp.gmail.com) …
+[Email] Invoice sent via real SMTP to musteri@example.com (messageId: …)
+```
+
+**Hata logları:**
+```
+[Email] Failed to send invoice INV-xxxx (real SMTP): Error: …
+```
+→ Uygulama şifresini kontrol et; 2FA açık mı? Şifrede boşluk var mı?
+
+Not: Hata olsa bile sipariş oluşturulur; sadece email gitmez.
 
 ---
 

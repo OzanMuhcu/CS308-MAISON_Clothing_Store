@@ -17,6 +17,10 @@ export interface Product {
   sku: string;
   imageUrl: string;
   category: string;
+  model: string;
+  serialNumber: string;
+  warrantyStatus: string;
+  distributorInfo: string;
   avgRating: number;
   ratingCount: number;
 }
