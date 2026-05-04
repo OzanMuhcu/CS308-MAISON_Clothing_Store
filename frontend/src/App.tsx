@@ -15,6 +15,12 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Payment from "./pages/Payment";
 import Wishlist from "./pages/Wishlist";
+import About from "./pages/About";
+import Careers from "./pages/Careers";
+import Sustainability from "./pages/Sustainability";
+import Contact from "./pages/Contact";
+import Shipping from "./pages/Shipping";
+import SizeGuide from "./pages/SizeGuide";
 
 export default function App() {
   return (
@@ -35,6 +41,12 @@ export default function App() {
                 <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
                 <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
+                <Route path="/about" element={<About />} />
+                <Route path="/careers" element={<Careers />} />
+                <Route path="/sustainability" element={<Sustainability />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/shipping" element={<Shipping />} />
+                <Route path="/size-guide" element={<SizeGuide />} />
                 <Route path="*" element={<div className="text-center py-20"><h1 className="font-display text-4xl text-brand-900 mb-2">404</h1><p className="text-sm text-brand-500">Page not found</p></div>} />
               </Routes>
             </main>
