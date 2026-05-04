@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export default function Footer() {
   return (
     <footer className="border-t border-brand-200 mt-20">
@@ -13,17 +15,29 @@ export default function Footer() {
           <div>
             <p className="text-xs tracking-widest uppercase font-medium text-brand-900 mb-3">Customer Care</p>
             <ul className="space-y-2 text-sm text-brand-500">
-              <li>Shipping &amp; Returns</li>
-              <li>Size Guide</li>
-              <li>Contact Us</li>
+              <li>
+                <Link to="/shipping" className="hover:text-brand-900 transition-colors">Shipping &amp; Returns</Link>
+              </li>
+              <li>
+                <Link to="/size-guide" className="hover:text-brand-900 transition-colors">Size Guide</Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-brand-900 transition-colors">Contact Us</Link>
+              </li>
             </ul>
           </div>
           <div>
             <p className="text-xs tracking-widest uppercase font-medium text-brand-900 mb-3">Company</p>
             <ul className="space-y-2 text-sm text-brand-500">
-              <li>About</li>
-              <li>Sustainability</li>
-              <li>Careers</li>
+              <li>
+                <Link to="/about" className="hover:text-brand-900 transition-colors">About</Link>
+              </li>
+              <li>
+                <Link to="/sustainability" className="hover:text-brand-900 transition-colors">Sustainability</Link>
+              </li>
+              <li>
+                <Link to="/careers" className="hover:text-brand-900 transition-colors">Careers</Link>
+              </li>
             </ul>
           </div>
         </div>
