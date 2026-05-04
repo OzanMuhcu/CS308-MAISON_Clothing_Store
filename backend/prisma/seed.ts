@@ -3,8 +3,10 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-// Stable Unsplash photo IDs — each verified to exist and match its product type.
-// Format: https://images.unsplash.com/photo-{ID}?w=600&h=800&fit=crop&q=80
+// Unsplash direct photo CDN links — format: photo-{ID}?w=600&h=800&fit=crop&q=80
+// Each ID is curated to match the product's category. To verify or replace an image,
+// visit: https://unsplash.com/photos/{ID}
+// Maintainability: one ID per product, grouped by category below.
 const u = (id: string) => `https://images.unsplash.com/photo-${id}?w=600&h=800&fit=crop&q=80`;
 
 // Distributor strings per category
@@ -73,7 +75,7 @@ async function main() {
       {
         name: "Quilted Field Jacket", sku: "JC-004", price: 175, stockQty: 3,
         description: "Diamond-quilted jacket with corduroy collar and brass snaps. Insulated, no bulk.",
-        imageUrl: u("1591047139829-d91aecb6caea"), category: "Jackets & Coats",
+        imageUrl: u("1517463700-b6ebe1b3d7f3"), category: "Jackets & Coats",
         model: "Heritage Outerwear Line", serialNumber: "SN-JC-004",
         warrantyStatus: warranty(175), distributorInfo: DIST.jackets,
       },
@@ -118,7 +120,7 @@ async function main() {
       {
         name: "Linen Camp Collar Shirt", sku: "SH-003", price: 78, stockQty: 18,
         description: "Relaxed camp collar in pure European linen. Boxy fit, warm-weather ease.",
-        imageUrl: u("1602810318383-e386cc2a3ccf"), category: "Shirts",
+        imageUrl: u("1564584217132-9f6a47e46398"), category: "Shirts",
         model: "Classic Shirts Collection", serialNumber: "SN-SH-003",
         warrantyStatus: warranty(78), distributorInfo: DIST.shirts,
       },
@@ -207,7 +209,7 @@ async function main() {
       {
         name: "Cashmere Crew Sweater", sku: "KN-001", price: 195, stockQty: 10,
         description: "Pure Mongolian cashmere, classic crew-neck. Ribbed cuffs and hem.",
-        imageUrl: u("1638643391904-9b551ba91eaa"), category: "Knitwear",
+        imageUrl: u("1582418702059-97ebba07635a"), category: "Knitwear",
         model: "Premium Knitwear Series", serialNumber: "SN-KN-001",
         warrantyStatus: warranty(195), distributorInfo: DIST.knitwear,
       },
@@ -259,7 +261,7 @@ async function main() {
       {
         name: "Leather Chelsea Boots", sku: "FW-001", price: 245, stockQty: 15,
         description: "Full-grain calf leather, Goodyear-welted sole. Elastic side panels.",
-        imageUrl: u("1638247025967-b4e38f787b76"), category: "Footwear",
+        imageUrl: u("1572635196237-14b3f281503f"), category: "Footwear",
         model: "Artisan Footwear Series", serialNumber: "SN-FW-001",
         warrantyStatus: warranty(245), distributorInfo: DIST.footwear,
       },

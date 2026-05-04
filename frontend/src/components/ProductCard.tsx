@@ -4,6 +4,7 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import type { Product, WishlistItem, WishlistList } from "../types";
+import { getCategoryFallback } from "../utils/imageUtils";
 
 function DisplayRating({ value, size = "w-3 h-3" }: { value: number; size?: string }) {
   const normalized = Math.max(0, Math.min(5, value));
@@ -155,19 +156,19 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <Link to={`/products/${product.id}`} className="group block">
       <div className="relative aspect-[3/4] overflow-hidden bg-brand-100 mb-3">
-        {!imageError && product.imageUrl ? (
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            loading="lazy"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-brand-400 text-xs tracking-wide uppercase">
-            Image unavailable
-          </div>
-        )}
+        <img
+          src={imageError || !product.imageUrl ? getCategoryFallback(product.category) : product.imageUrl}
+          alt={product.name}
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          loading="lazy"
+          onError={(e) => {
+            if (!imageError) {
+              setImageError(true);
+            } else {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }
+          }}
+        />
         {outOfStock && (
           <div className="absolute inset-0 bg-brand-50/60 flex items-center justify-center">
             <span className="text-xs tracking-widest uppercase font-medium text-brand-700 bg-white/90 px-4 py-2">Sold Out</span>

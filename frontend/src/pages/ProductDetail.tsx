@@ -4,6 +4,7 @@ import api from "../services/api";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import type { Product, ProductReviews, MyReviewData, WishlistItem, WishlistList } from "../types";
+import { getCategoryFallback } from "../utils/imageUtils";
 
 function StarRating({
   value,
@@ -325,18 +326,18 @@ export default function ProductDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
         {/* Image */}
         <div className="aspect-[3/4] bg-brand-100 overflow-hidden relative">
-          {!imageError && product.imageUrl ? (
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-brand-400 text-xs tracking-wide uppercase">
-              Image unavailable
-            </div>
-          )}
+          <img
+            src={imageError || !product.imageUrl ? getCategoryFallback(product.category) : product.imageUrl}
+            alt={product.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              if (!imageError) {
+                setImageError(true);
+              } else {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }
+            }}
+          />
           {/* Wishlist button overlay */}
           {user && (
             <div className="absolute top-4 right-4">
