@@ -47,7 +47,13 @@ const formatExpiry = (raw: string) => {
 };
 
 export default function Account() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
+  const [profileName, setProfileName] = useState(user?.name ?? "");
+  const [profileEmail, setProfileEmail] = useState(user?.email ?? "");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileStatus, setProfileStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | "new">("new");
   const [address, setAddress] = useState<AddressForm>(EMPTY_ADDRESS);
@@ -69,6 +75,13 @@ export default function Account() {
   const [wishlists, setWishlists] = useState<WishlistList[]>([]);
   const [loadingWishlists, setLoadingWishlists] = useState(true);
 
+  useEffect(() => {
+    setProfileName(user.name);
+    setProfileEmail(user.email);
+    setProfileStatus("idle");
+    setProfileError(null);
+  }, [user]);
+
   if (!user) return null;
 
   const initials = user.name
@@ -82,6 +95,58 @@ export default function Account() {
     customer: "Customer",
     sales_manager: "Sales Manager",
     product_manager: "Product Manager",
+  };
+
+  const validateProfile = () => {
+    if (!profileName.trim()) {
+      setProfileError("Name is required.");
+      return false;
+    }
+    const normalizedEmail = profileEmail.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(normalizedEmail)) {
+      setProfileError("Please enter a valid email address.");
+      return false;
+    }
+    setProfileError(null);
+    return true;
+  };
+
+  const handleEditProfile = () => {
+    setProfileError(null);
+    setProfileStatus("idle");
+    setIsEditingProfile(true);
+  };
+
+  const handleCancelProfileEdit = () => {
+    setProfileName(user.name);
+    setProfileEmail(user.email);
+    setProfileError(null);
+    setProfileStatus("idle");
+    setIsEditingProfile(false);
+  };
+
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateProfile()) return;
+
+    setProfileSaving(true);
+    setProfileStatus("idle");
+    try {
+      await updateProfile(profileName.trim(), profileEmail.trim());
+      setProfileStatus("saved");
+      setIsEditingProfile(false);
+      setTimeout(() => setProfileStatus("idle"), 3000);
+    } catch (err: any) {
+      setProfileStatus("error");
+      if (err?.response?.data?.error) {
+        setProfileError(err.response.data.error);
+      } else {
+        setProfileError("Unable to update profile. Please try again.");
+      }
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   // Load the user's saved default address on mount
@@ -410,21 +475,78 @@ export default function Account() {
 
       {/* Account Details */}
       <section className="mb-10">
-        <h2 className="text-xs tracking-[0.15em] uppercase text-brand-500 font-medium mb-3">
-          Account Details
-        </h2>
-        <div className="border border-brand-200 divide-y divide-brand-100">
-          <Row label="Name" value={user.name} />
-          <Row label="Email" value={user.email} />
-          <Row label="Account Type" value={roles[user.role] || user.role} />
-          <Row
-            label="Member Since"
-            value={new Date(user.createdAt).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          />
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs tracking-[0.15em] uppercase text-brand-500 font-medium">
+            Account Details
+          </h2>
+          <button
+            type="button"
+            onClick={isEditingProfile ? handleCancelProfileEdit : handleEditProfile}
+            className="text-sm font-semibold text-brand-600 hover:text-brand-800 transition-colors"
+          >
+            {isEditingProfile ? "Cancel" : "Edit"}
+          </button>
+        </div>
+
+        <div className="border border-brand-200 bg-white">
+          {isEditingProfile ? (
+            <form onSubmit={handleProfileSave} className="p-6 space-y-4" noValidate>
+              <div>
+                <label className="input-label">Name</label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="input-field"
+                  placeholder="Your full name"
+                />
+              </div>
+              <div>
+                <label className="input-label">Email</label>
+                <input
+                  type="email"
+                  value={profileEmail}
+                  onChange={(e) => setProfileEmail(e.target.value)}
+                  className="input-field"
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div className="flex items-center gap-4 pt-1">
+                <button type="submit" disabled={profileSaving} className="btn-primary">
+                  {profileSaving ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelProfileEdit}
+                  disabled={profileSaving}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                {profileStatus === "saved" && (
+                  <span className="text-sm text-green-600">Profile updated successfully.</span>
+                )}
+                {profileStatus === "error" && (
+                  <span className="text-sm text-red-600">Failed to update profile.</span>
+                )}
+              </div>
+              {profileError && <p className="text-sm text-red-600">{profileError}</p>}
+            </form>
+          ) : (
+            <div className="divide-y divide-brand-100">
+              <Row label="Name" value={user.name} />
+              <Row label="Email" value={user.email} />
+              <Row label="Account Type" value={roles[user.role] || user.role} />
+              <Row
+                label="Member Since"
+                value={new Date(user.createdAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              />
+            </div>
+          )}
         </div>
       </section>
 
