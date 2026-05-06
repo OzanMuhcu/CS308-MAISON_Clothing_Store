@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { getCategoryFallback } from "../utils/imageUtils";
 
 export default function Cart() {
   const { user } = useAuth();
@@ -33,9 +34,19 @@ export default function Cart() {
           <div key={item.productId} className="grid grid-cols-12 gap-4 py-6 items-center">
             <div className="col-span-12 md:col-span-6 flex items-center gap-4">
               <div className="w-20 h-24 bg-brand-100 flex-shrink-0 overflow-hidden">
-                {item.imageUrl
-                  ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center text-brand-300 text-xs">No image</div>}
+                <img
+                  src={item.imageUrl || getCategoryFallback()}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const fallback = getCategoryFallback();
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (img.src !== fallback) {
+                      img.onerror = null;
+                      img.src = fallback;
+                    }
+                  }}
+                />
               </div>
               <div>
                 <Link to={`/products/${item.productId}`} className="text-sm font-medium text-brand-900 hover:underline underline-offset-2">{item.name}</Link>

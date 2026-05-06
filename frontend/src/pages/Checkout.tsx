@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { getCategoryFallback } from "../utils/imageUtils";
 import api from "../services/api";
 import type { OrderAddress, SavedAddress } from "../types";
 
@@ -266,13 +267,19 @@ export default function Checkout() {
                   className="flex items-center gap-3 px-4 py-3"
                 >
                   <div className="w-10 h-12 bg-brand-100 flex-shrink-0 overflow-hidden">
-                    {item.imageUrl && (
-                      <img
-                        src={item.imageUrl}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    )}
+                    <img
+                      src={item.imageUrl || getCategoryFallback()}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const fallback = getCategoryFallback();
+                        const img = e.currentTarget as HTMLImageElement;
+                        if (img.src !== fallback) {
+                          img.onerror = null;
+                          img.src = fallback;
+                        }
+                      }}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-brand-900 truncate">

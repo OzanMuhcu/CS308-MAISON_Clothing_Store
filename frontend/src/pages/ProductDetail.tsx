@@ -100,7 +100,6 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
-  const [imageError, setImageError] = useState(false);
 
   // Wishlist state
   const [inWishlist, setInWishlist] = useState(false);
@@ -120,7 +119,6 @@ export default function ProductDetail() {
   const [reviewMessage, setReviewMessage] = useState("");
 
   useEffect(() => {
-    setImageError(false);
     api
       .get(`/products/${id}`)
       .then((r) => setProduct(r.data))
@@ -327,14 +325,15 @@ export default function ProductDetail() {
         {/* Image */}
         <div className="aspect-[3/4] bg-brand-100 overflow-hidden relative">
           <img
-            src={imageError || !product.imageUrl ? getCategoryFallback(product.category) : product.imageUrl}
+            src={product.imageUrl || getCategoryFallback(product.category)}
             alt={product.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              if (!imageError) {
-                setImageError(true);
-              } else {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
+              const fallback = getCategoryFallback(product.category);
+              const img = e.currentTarget as HTMLImageElement;
+              if (img.src !== fallback) {
+                img.onerror = null;
+                img.src = fallback;
               }
             }}
           />
