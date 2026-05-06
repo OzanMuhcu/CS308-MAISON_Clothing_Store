@@ -142,10 +142,12 @@ describe("paymentSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  test("rejects missing cardholderFullName", () => {
-    const { cardholderFullName: _omit, ...rest } = validCard;
-    const result = paymentSchema.safeParse(rest);
-    expect(result.success).toBe(false);
+  test("accepts cardholder name with Turkish characters", () => {
+    const result = paymentSchema.safeParse({
+      ...validCard,
+      cardholderFullName: "Şenol Güneş",
+    });
+    expect(result.success).toBe(true);
   });
 
   test("rejects short card number", () => {

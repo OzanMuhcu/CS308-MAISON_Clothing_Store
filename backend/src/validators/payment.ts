@@ -4,7 +4,7 @@ export const paymentSchema = z.object({
   cardholderFullName: z
     .string()
     .trim()
-    .regex(/^[A-Za-z\s'.-]{2,}$/, "Cardholder full name is required"),
+    .regex(/^[A-Za-zÇçĞğİıÖöŞşÜü\s'.-]{2,}$/, "Cardholder full name is required"),
   cardNumber: z
     .string()
     .transform((v) => v.replace(/\s/g, ""))

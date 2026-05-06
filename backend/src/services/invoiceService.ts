@@ -38,13 +38,16 @@ export function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
+    // Register Arial Unicode font for better UTF-8 support
+    doc.registerFont('ArialUnicode', '/Library/Fonts/Arial Unicode.ttf');
+
     // Header
-    doc.fontSize(22).font("Helvetica-Bold").text("MAISON", { align: "center" });
-    doc.fontSize(10).font("Helvetica").text("Invoice", { align: "center" });
+    doc.fontSize(22).font("ArialUnicode").text("MAISON", { align: "center" });
+    doc.fontSize(10).font("ArialUnicode").text("Invoice", { align: "center" });
     doc.moveDown(1.5);
 
     // Invoice meta
-    doc.fontSize(9).font("Helvetica");
+    doc.fontSize(9).font("ArialUnicode");
     doc.text(`Invoice No: ${data.invoiceNo}`);
     doc.text(`Date: ${data.date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`);
     doc.moveDown(0.5);
@@ -64,7 +67,7 @@ export function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     const colTotal = 460;
     const y0 = doc.y;
 
-    doc.font("Helvetica-Bold").fontSize(8);
+    doc.font("ArialUnicode").fontSize(8);
     doc.text("PRODUCT", colName, y0, { width: 200 });
     doc.text("ID", colId, y0, { width: 50 });
     doc.text("QTY", colQty, y0, { width: 50, align: "center" });
@@ -72,7 +75,7 @@ export function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     doc.text("TOTAL", colTotal, y0, { width: 70, align: "right" });
 
     doc.moveTo(left, y0 + 14).lineTo(530, y0 + 14).lineWidth(0.5).stroke();
-    doc.font("Helvetica").fontSize(9);
+    doc.font("ArialUnicode").fontSize(9);
 
     let y = y0 + 22;
     for (const item of data.items) {
@@ -87,11 +90,11 @@ export function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     // Total
     doc.moveTo(left, y + 4).lineTo(530, y + 4).lineWidth(0.5).stroke();
     y += 14;
-    doc.font("Helvetica-Bold").fontSize(11);
+    doc.font("ArialUnicode").fontSize(11);
     doc.text(`Total: $${data.totalAmount.toFixed(2)}`, colPrice, y, { width: 140, align: "right" });
 
     doc.moveDown(3);
-    doc.font("Helvetica").fontSize(7).fillColor("#888");
+    doc.font("ArialUnicode").fontSize(7).fillColor("#888");
     doc.text("Thank you for shopping with MAISON.", left, doc.y, { align: "center", width: 480 });
 
     doc.end();
