@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
+import { getCategoryFallback } from "../utils/imageUtils";
 import type { WishlistItem, WishlistList } from "../types";
 
 export default function Wishlist() {
@@ -198,18 +199,20 @@ export default function Wishlist() {
                 <div key={item.id} className="group relative bg-white border border-brand-100 transition-shadow hover:shadow-md">
                   <Link to={`/products/${item.product.id}`} className="block">
                     <div className="aspect-[3/4] overflow-hidden bg-brand-100">
-                      {item.product.imageUrl ? (
-                        <img
-                          src={item.product.imageUrl}
-                          alt={item.product.name}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-brand-400 text-xs tracking-wide uppercase">
-                          Image unavailable
-                        </div>
-                      )}
+                      <img
+                        src={item.product.imageUrl || getCategoryFallback(item.product.category)}
+                        alt={item.product.name}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        loading="lazy"
+                        onError={(e) => {
+                          const fallback = getCategoryFallback(item.product.category);
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (img.src !== fallback) {
+                            img.onerror = null;
+                            img.src = fallback;
+                          }
+                        }}
+                      />
                     </div>
                     <div className="p-4 space-y-1">
                       <p className="text-[10px] tracking-widest uppercase text-brand-400">
