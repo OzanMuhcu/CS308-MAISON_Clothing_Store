@@ -52,14 +52,27 @@ export default function Payment() {
   if (count === 0 && !orderResult) return <Navigate to="/cart" replace />;
   if (!storedAddr && !orderResult) return <Navigate to="/checkout" replace />;
 
+  function luhn(num: string): boolean {
+    let sum = 0;
+    let double = false;
+    for (let i = num.length - 1; i >= 0; i--) {
+      let d = Number(num[i]);
+      if (double) { d *= 2; if (d > 9) d -= 9; }
+      sum += d;
+      double = !double;
+    }
+    return sum % 10 === 0;
+  }
+
   function validateCard(v: string): string | true {
-    return /^\d{16}$/.test(v.replace(/\s/g, ""))
-      ? true
-      : "Card number must be exactly 16 digits";
+    const digits = v.replace(/\s/g, "");
+    if (!/^\d{16}$/.test(digits)) return "Card number must be exactly 16 digits";
+    if (!luhn(digits)) return "Invalid card number";
+    return true;
   }
 
   function validateCardholder(v: string): string | true {
-    return /^[A-Za-z\s'.-]{2,}$/.test(v.trim())
+    return /^[A-Za-zçğıöşüÇĞİÖŞÜ\s'.-]{2,}$/.test(v.trim())
       ? true
       : "Cardholder full name is required";
   }
@@ -84,7 +97,12 @@ export default function Payment() {
   }
 
   function validateCvv(v: string): string | true {
-    return /^\d{3}$/.test(v) ? true : "CVV must be exactly 3 digits";
+    if (!/^\d{3}$/.test(v)) return "CVV must be exactly 3 digits";
+    if (/^(\d)\1{2}$/.test(v)) return "CVV cannot use repeated digits";
+    const SEQ_ASC = ["012","123","234","345","456","567","678","789"];
+    const SEQ_DESC = ["987","876","765","654","543","432","321","210"];
+    if (SEQ_ASC.includes(v) || SEQ_DESC.includes(v)) return "CVV cannot be a simple sequence";
+    return true;
   }
   function fmtCard(e: React.ChangeEvent<HTMLInputElement>) {
     let v = e.target.value.replace(/\D/g, "").slice(0, 16);
