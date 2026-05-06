@@ -12,7 +12,7 @@ const CATEGORY_FALLBACKS: Record<string, string> = {
 
 const GENERIC_FALLBACK = "1539533018447-63fcce2678e3"; // fallback for unknown categories
 
-export function getCategoryFallback(category: string): string {
-  const id = CATEGORY_FALLBACKS[category] ?? GENERIC_FALLBACK;
+export function getCategoryFallback(category?: string): string {
+  const id = CATEGORY_FALLBACKS[category ?? ""] ?? GENERIC_FALLBACK;
   return `https://images.unsplash.com/photo-${id}?w=600&h=800&fit=crop&q=80`;
 }

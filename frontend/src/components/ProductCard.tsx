@@ -56,7 +56,6 @@ export default function ProductCard({ product }: { product: Product }) {
   const { user } = useAuth();
   const [adding, setAdding] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [wishlists, setWishlists] = useState<WishlistList[]>([]);
   const [loadingWishlists, setLoadingWishlists] = useState(false);
@@ -157,15 +156,16 @@ export default function ProductCard({ product }: { product: Product }) {
     <Link to={`/products/${product.id}`} className="group block">
       <div className="relative aspect-[3/4] overflow-hidden bg-brand-100 mb-3">
         <img
-          src={imageError || !product.imageUrl ? getCategoryFallback(product.category) : product.imageUrl}
+          src={product.imageUrl || getCategoryFallback(product.category)}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
-            if (!imageError) {
-              setImageError(true);
-            } else {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
+            const fallback = getCategoryFallback(product.category);
+            const img = e.currentTarget as HTMLImageElement;
+            if (img.src !== fallback) {
+              img.onerror = null;
+              img.src = fallback;
             }
           }}
         />
