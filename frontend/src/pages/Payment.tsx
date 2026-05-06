@@ -59,7 +59,7 @@ export default function Payment() {
   }
 
   function validateCardholder(v: string): string | true {
-    return /^[A-Za-z\s'.-]{2,}$/.test(v.trim())
+    return /^[A-Za-zÇçĞğİıÖöŞşÜü\s'.-]{2,}$/.test(v.trim())
       ? true
       : "Cardholder full name is required";
   }

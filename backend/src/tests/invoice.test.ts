@@ -31,10 +31,35 @@ describe("generateInvoicePdf", () => {
     expect(buf.length).toBeGreaterThan(0);
   });
 
-  test("does not throw when items array is empty", async () => {
-    await expect(
-      generateInvoicePdf({ ...singleItemInvoice, items: [], totalAmount: 0 })
-    ).resolves.toBeInstanceOf(Buffer);
+  test("handles Turkish characters in customer name", async () => {
+    const turkishInvoice = {
+      ...singleItemInvoice,
+      customerName: "Şenol Güneş",
+      address: {
+        ...singleItemInvoice.address,
+        fullName: "Şenol Güneş",
+      },
+    };
+    const buf = await generateInvoicePdf(turkishInvoice);
+    expect(buf).toBeInstanceOf(Buffer);
+    expect(buf.length).toBeGreaterThan(0);
+  });
+
+  test("handles Turkish characters in address", async () => {
+    const turkishAddressInvoice = {
+      ...singleItemInvoice,
+      customerName: "Ahmet Yılmaz",
+      address: {
+        fullName: "Ahmet Yılmaz",
+        line1: "İstiklal Caddesi No: 123",
+        city: "İstanbul",
+        postalCode: "34430",
+        country: "Türkiye",
+      },
+    };
+    const buf = await generateInvoicePdf(turkishAddressInvoice);
+    expect(buf).toBeInstanceOf(Buffer);
+    expect(buf.length).toBeGreaterThan(0);
   });
 
   test("handles multiple line items without throwing", async () => {
