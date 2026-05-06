@@ -8,6 +8,44 @@ const router = Router();
 
 // All /api/users routes require authentication
 router.use(authenticate);
+
+const profileUpdateSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Email must be valid"),
+});
+
+router.put("/me", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = profileUpdateSchema.parse(req.body);
+    const userId = req.user!.userId;
+
+    const existingEmail = await prisma.user.findFirst({
+      where: { email: data.email },
+    });
+
+    if (existingEmail && existingEmail.id !== userId) {
+      throw new AppError(409, "This email is already in use.");
+    }
+
+    const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!currentUser) {
+      throw new AppError(404, "User not found.");
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: data.name,
+        email: data.email,
+      },
+    });
+
+    res.json({ user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, createdAt: updated.createdAt } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 const savedCardSchema = z.object({
   label: z.string().trim().min(1).max(40),
   cardholderFullName: z.string().trim().min(2),
