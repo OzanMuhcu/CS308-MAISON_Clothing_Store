@@ -174,7 +174,7 @@ export default function Account() {
       );
       if (duplicate) e.label = "Card label must be unique.";
     }
-    if (!/^[A-Za-z\s'.-]{2,}$/.test(card.cardholderFullName.trim())) {
+    if (!/^[A-Za-zÇçĞğİıÖöŞşÜü\s'.-]{2,}$/.test(card.cardholderFullName.trim())) {
       e.cardholderFullName = "Cardholder full name is required";
     }
     if (!/^\d{16}$/.test(card.cardNumber.replace(/\s/g, ""))) {
