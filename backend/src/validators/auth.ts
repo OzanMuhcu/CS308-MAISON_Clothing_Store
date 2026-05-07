@@ -16,3 +16,17 @@ export const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
+
+export const passwordChangeRequestSchema = z.object({
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be under 128 characters"),
+});
+
+export const passwordChangeVerifySchema = z.object({
+  code: z
+    .string()
+    .length(6, "Verification code must be 6 digits")
+    .regex(/^[0-9]{6}$/, "Verification code must contain only digits"),
+});

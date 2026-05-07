@@ -54,6 +54,16 @@ export default function Account() {
   const [profileStatus, setProfileStatus] = useState<"idle" | "saved" | "error">("idle");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [passwordStage, setPasswordStage] = useState<"idle" | "sent" | "verified">("idle");
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | "new">("new");
   const [address, setAddress] = useState<AddressForm>(EMPTY_ADDRESS);
@@ -76,6 +86,7 @@ export default function Account() {
   const [loadingWishlists, setLoadingWishlists] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
     setProfileName(user.name);
     setProfileEmail(user.email);
     setProfileStatus("idle");
@@ -146,6 +157,66 @@ export default function Account() {
       }
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const validatePasswordChange = () => {
+    if (newPassword.length < 8) {
+      setPasswordError("Password must be at least 8 characters.");
+      return false;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("Passwords do not match.");
+      return false;
+    }
+    setPasswordError(null);
+    return true;
+  };
+
+  const handlePasswordChangeRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validatePasswordChange()) return;
+
+    setPasswordLoading(true);
+    setPasswordStage("idle");
+    setVerificationError(null);
+    try {
+      await api.post("/users/me/password-change", { password: newPassword });
+      setPasswordStage("sent");
+    } catch (err: any) {
+      setPasswordStage("idle");
+      setPasswordError(
+        err.response?.data?.error || "Unable to initiate password change. Please try again."
+      );
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handlePasswordChangeVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode.trim()) {
+      setVerificationError("Verification code is required.");
+      return;
+    }
+
+    setVerificationLoading(true);
+    try {
+      await api.post("/users/me/password-change/verify", { code: verificationCode.trim() });
+      setPasswordStage("verified");
+      setIsChangingPassword(false);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setVerificationCode("");
+      setShowPassword(false);
+      setPasswordError(null);
+      setVerificationError(null);
+    } catch (err: any) {
+      setVerificationError(
+        err.response?.data?.error || "Verification failed. Please check your code and try again."
+      );
+    } finally {
+      setVerificationLoading(false);
     }
   };
 
@@ -537,6 +608,32 @@ export default function Account() {
               <Row label="Name" value={user.name} />
               <Row label="Email" value={user.email} />
               <Row label="Account Type" value={roles[user.role] || user.role} />
+              <div className="flex justify-between items-center px-5 py-3.5">
+                <span className="text-xs tracking-wider uppercase text-brand-500 font-medium">
+                  Password
+                </span>
+                <span className="text-sm text-brand-900">••••••••</span>
+              </div>
+              <div className="flex justify-between items-center px-5 py-3.5">
+                <span className="text-xs tracking-wider uppercase text-brand-500 font-medium">
+                  Change Password
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChangingPassword(true);
+                    setPasswordStage("idle");
+                    setPasswordError(null);
+                    setVerificationError(null);
+                    setNewPassword("");
+                    setConfirmNewPassword("");
+                    setVerificationCode("");
+                  }}
+                  className="text-sm font-semibold text-brand-600 hover:text-brand-800 transition-colors"
+                >
+                  Change password
+                </button>
+              </div>
               <Row
                 label="Member Since"
                 value={new Date(user.createdAt).toLocaleDateString("en-US", {
@@ -549,6 +646,105 @@ export default function Account() {
           )}
         </div>
       </section>
+
+      {isChangingPassword && (
+        <section className="mb-10 border border-brand-200 bg-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xs tracking-[0.15em] uppercase text-brand-500 font-medium">
+                Verify Password Change
+              </h2>
+              <p className="text-sm text-brand-500 mt-1">
+                Enter a new password and verify it using the code sent to your email.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsChangingPassword(false);
+                setPasswordError(null);
+                setVerificationError(null);
+              }}
+              className="text-sm font-semibold text-brand-600 hover:text-brand-800 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+
+          <form onSubmit={passwordStage === "sent" ? handlePasswordChangeVerify : handlePasswordChangeRequest} className="space-y-4" noValidate>
+            <div>
+              <label className="input-label">New Password</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                className="input-field"
+                placeholder="Enter a new password"
+              />
+            </div>
+            <div>
+              <label className="input-label">Confirm Password</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                autoComplete="new-password"
+                className="input-field"
+                placeholder="Re-enter your new password"
+              />
+            </div>
+            <div className="flex items-center gap-3 text-sm text-brand-500">
+              <input
+                id="show-password-account"
+                type="checkbox"
+                checked={showPassword}
+                onChange={(e) => setShowPassword(e.target.checked)}
+                className="h-4 w-4 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
+              />
+              <label htmlFor="show-password-account" className="cursor-pointer">
+                Show password
+              </label>
+            </div>
+            {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+
+            {passwordStage === "sent" ? (
+              <>
+                <div>
+                  <label className="input-label">Verification Code</label>
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="input-field"
+                    placeholder="123456"
+                    inputMode="numeric"
+                  />
+                  {verificationError && (
+                    <p className="input-error">{verificationError}</p>
+                  )}
+                </div>
+                <button type="submit" disabled={verificationLoading} className="btn-primary">
+                  {verificationLoading ? "Verifying..." : "Verify Code"}
+                </button>
+              </>
+            ) : (
+              <button type="submit" disabled={passwordLoading} className="btn-primary">
+                {passwordLoading ? "Sending code..." : "Send verification code"}
+              </button>
+            )}
+
+            {passwordStage === "sent" && (
+              <p className="text-sm text-brand-500">
+                A verification code has been sent to your email. Please enter it here to complete the password change.
+              </p>
+            )}
+            {passwordStage === "verified" && (
+              <p className="text-sm text-green-600">Your password has been changed successfully.</p>
+            )}
+          </form>
+        </section>
+      )}
 
       {/* Default Delivery Address — Story 14 */}
       <section className="mb-10">

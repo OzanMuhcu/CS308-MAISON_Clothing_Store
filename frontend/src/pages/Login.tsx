@@ -10,6 +10,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   const onSubmit = async (data: LoginForm) => {
@@ -40,9 +41,19 @@ export default function Login() {
           </div>
           <div>
             <label htmlFor="password" className="input-label">Password</label>
-            <input id="password" type="password" autoComplete="current-password" className="input-field"
+            <input id="password" type={showPassword ? "text" : "password"} autoComplete="current-password" className="input-field"
               {...register("password", { required: "Password is required" })} />
             {errors.password && <p className="input-error">{errors.password.message}</p>}
+          </div>
+          <div className="flex items-center gap-3 text-sm text-brand-500">
+            <input
+              id="show-password"
+              type="checkbox"
+              checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+              className="h-4 w-4 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
+            />
+            <label htmlFor="show-password" className="cursor-pointer">Show password</label>
           </div>
           <button type="submit" disabled={submitting} className="btn-primary w-full">
             {submitting ? "Signing in..." : "Sign In"}
