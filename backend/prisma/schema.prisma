@@ -26,15 +26,18 @@ enum CommentStatus {
 }
 
 model User {
-  id             Int      @id @default(autoincrement())
-  name           String
-  email          String   @unique
-  passwordHash   String   @map("password_hash")
-  role           Role     @default(customer)
+  id                         Int      @id @default(autoincrement())
+  name                       String
+  email                      String   @unique
+  passwordHash               String   @map("password_hash")
+  passwordChangeCode         String?  @map("password_change_code")
+  passwordChangeCodeExpiresAt DateTime? @map("password_change_code_expires_at")
+  passwordChangeNewHash      String?  @map("password_change_new_hash")
+  role                       Role     @default(customer)
   /// Story 14: nullable JSON default delivery address snapshot.
   /// Shape: { fullName, line1, line2?, city, postalCode, country }
-  defaultAddress Json?    @map("default_address")
-  createdAt      DateTime @default(now()) @map("created_at")
+  defaultAddress             Json?    @map("default_address")
+  createdAt                  DateTime @default(now()) @map("created_at")
 
   savedCards    SavedCard[]
   cartItems     CartItem[]
