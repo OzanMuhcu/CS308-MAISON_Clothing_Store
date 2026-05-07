@@ -3,11 +3,71 @@ import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
+import { passwordChangeRequestSchema, passwordChangeVerifySchema } from "../validators/auth";
+import { requestPasswordChange, verifyPasswordChange } from "../services/authService";
 
 const router = Router();
 
 // All /api/users routes require authentication
 router.use(authenticate);
+
+const profileUpdateSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Email must be valid"),
+});
+
+router.put("/me", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = profileUpdateSchema.parse(req.body);
+    const userId = req.user!.userId;
+
+    const existingEmail = await prisma.user.findFirst({
+      where: { email: data.email },
+    });
+
+    if (existingEmail && existingEmail.id !== userId) {
+      throw new AppError(409, "This email is already in use.");
+    }
+
+    const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!currentUser) {
+      throw new AppError(404, "User not found.");
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: data.name,
+        email: data.email,
+      },
+    });
+
+    res.json({ user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, createdAt: updated.createdAt } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/me/password-change", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = passwordChangeRequestSchema.parse(req.body);
+    const result = await requestPasswordChange(req.user!.userId, data.password);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/me/password-change/verify", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = passwordChangeVerifySchema.parse(req.body);
+    const result = await verifyPasswordChange(req.user!.userId, data.code);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 const savedCardSchema = z.object({
   label: z.string().trim().min(1).max(40),
   cardholderFullName: z.string().trim().min(2),

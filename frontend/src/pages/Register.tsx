@@ -15,6 +15,7 @@ export default function Register() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -109,7 +110,7 @@ export default function Register() {
             </label>
             <input
               id="reg-password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               className="input-field"
               {...register("password", {
@@ -142,7 +143,7 @@ export default function Register() {
             </label>
             <input
               id="confirmPassword"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               className="input-field"
               {...register("confirmPassword", {
@@ -154,6 +155,19 @@ export default function Register() {
             {errors.confirmPassword && (
               <p className="input-error">{errors.confirmPassword.message}</p>
             )}
+          </div>
+
+          <div className="flex items-center gap-3 text-sm text-brand-500">
+            <input
+              id="show-password"
+              type="checkbox"
+              checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+              className="h-4 w-4 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
+            />
+            <label htmlFor="show-password" className="cursor-pointer">
+              Show password
+            </label>
           </div>
 
           <button
