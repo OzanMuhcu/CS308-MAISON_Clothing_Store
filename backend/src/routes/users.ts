@@ -3,6 +3,8 @@ import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
+import { passwordChangeRequestSchema, passwordChangeVerifySchema } from "../validators/auth";
+import { requestPasswordChange, verifyPasswordChange } from "../services/authService";
 
 const router = Router();
 
@@ -41,6 +43,26 @@ router.put("/me", async (req: Request, res: Response, next: NextFunction) => {
     });
 
     res.json({ user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, createdAt: updated.createdAt } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/me/password-change", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = passwordChangeRequestSchema.parse(req.body);
+    const result = await requestPasswordChange(req.user!.userId, data.password);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/me/password-change/verify", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = passwordChangeVerifySchema.parse(req.body);
+    const result = await verifyPasswordChange(req.user!.userId, data.code);
+    res.json(result);
   } catch (err) {
     next(err);
   }
