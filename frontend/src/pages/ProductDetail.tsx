@@ -48,6 +48,9 @@ function StarRating({
   );
 }
 
+const STAR_PATH =
+  "M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z";
+
 function DisplayRating({ value, size = "w-4 h-4" }: { value: number; size?: string }) {
   const normalized = Math.max(0, Math.min(5, value));
   return (
@@ -56,35 +59,26 @@ function DisplayRating({ value, size = "w-4 h-4" }: { value: number; size?: stri
         const fill = Math.max(0, Math.min(1, normalized - (star - 1)));
         return (
           <div key={star} className={`relative ${size} shrink-0`}>
-            <svg
-              className="absolute inset-0"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#c4b5a3"
-              strokeWidth="1.5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
-              />
+            <svg className="absolute inset-0" viewBox="0 0 24 24" fill="none" stroke="#c4b5a3" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d={STAR_PATH} />
             </svg>
-            {fill > 0 && (
+            {fill > 0 && fill < 1 && (
               <div className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
                 <svg
-                  className="absolute inset-0"
+                  style={{ position: "absolute", top: 0, left: 0, width: `${(1 / fill) * 100}%`, height: "100%" }}
                   viewBox="0 0 24 24"
                   fill="#d4a574"
                   stroke="#d4a574"
                   strokeWidth="1.5"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" d={STAR_PATH} />
                 </svg>
               </div>
+            )}
+            {fill === 1 && (
+              <svg className="absolute inset-0" viewBox="0 0 24 24" fill="#d4a574" stroke="#d4a574" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d={STAR_PATH} />
+              </svg>
             )}
           </div>
         );
