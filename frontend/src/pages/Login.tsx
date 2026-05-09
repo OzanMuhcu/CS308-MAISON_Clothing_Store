@@ -16,7 +16,16 @@ export default function Login() {
   const onSubmit = async (data: LoginForm) => {
     setServerError("");
     setSubmitting(true);
-    try { await login(data.email, data.password); navigate("/"); }
+    try {
+      await login(data.email, data.password);
+      const stored = localStorage.getItem("user");
+      const parsed = stored ? JSON.parse(stored) : null;
+      if (parsed?.role === "sales_manager") {
+        navigate("/admin");
+        return;
+      }
+      navigate("/");
+    }
     catch (err: any) { setServerError(err.response?.data?.error || "Something went wrong. Please try again."); }
     finally { setSubmitting(false); }
   };

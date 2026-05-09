@@ -75,6 +75,7 @@ model Product {
   name            String
   description     String   @default("")
   price           Decimal  @db.Decimal(10, 2)
+  discount        Decimal  @default(0) @db.Decimal(5, 2)
   stockQty        Int      @default(0) @map("stock_qty")
   sku             String   @unique
   imageUrl        String   @default("") @map("image_url")
