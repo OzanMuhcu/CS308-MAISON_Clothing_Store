@@ -14,6 +14,10 @@ export interface Product {
   description: string;
   price: number;
   discount: number;
+  discountName?: string | null;
+  discountType?: string | null;
+  discountStartsAt?: string | null;
+  discountEndsAt?: string | null;
   stockQty: number;
   sku: string;
   imageUrl: string;
@@ -94,6 +98,7 @@ export interface Order {
   invoiceNo: string | null;
   createdAt: string;
   items: OrderItem[];
+  user?: { id: number; name: string; email: string };
 }
 
 // Wishlist
