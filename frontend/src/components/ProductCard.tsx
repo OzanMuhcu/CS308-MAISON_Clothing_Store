@@ -9,6 +9,21 @@ import { getCategoryFallback } from "../utils/imageUtils";
 const STAR_PATH =
   "M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z";
 
+const isDiscountActive = (product: Product) => {
+  if (!product.discount || product.discount <= 0) return false;
+  const now = new Date();
+  const startsAt = product.discountStartsAt ? new Date(product.discountStartsAt) : null;
+  const endsAt = product.discountEndsAt ? new Date(product.discountEndsAt) : null;
+  if (startsAt && now < startsAt) return false;
+  if (endsAt && now > endsAt) return false;
+  return true;
+};
+
+const getDiscountedPrice = (product: Product) => {
+  const next = product.price * (1 - product.discount / 100);
+  return Math.max(0, Math.round(next * 100) / 100);
+};
+
 function DisplayRating({ value, size = "w-3 h-3" }: { value: number; size?: string }) {
   const normalized = Math.max(0, Math.min(5, value));
   return (
@@ -65,6 +80,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const [wishlistNotice, setWishlistNotice] = useState("");
   const outOfStock = product.stockQty <= 0;
   const lowStock = product.stockQty > 0 && product.stockQty < 5;
+  const discountActive = isDiscountActive(product);
+  const effectivePrice = discountActive ? getDiscountedPrice(product) : product.price;
 
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -72,7 +89,7 @@ export default function ProductCard({ product }: { product: Product }) {
     if (outOfStock || adding) return;
     setAdding(true);
     try {
-      await addItem({ productId: product.id, quantity: 1, name: product.name, price: product.price, imageUrl: product.imageUrl, stockQty: product.stockQty, sku: product.sku });
+      await addItem({ productId: product.id, quantity: 1, name: product.name, price: effectivePrice, imageUrl: product.imageUrl, stockQty: product.stockQty, sku: product.sku });
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 1400);
     } catch {} finally { setAdding(false); }
@@ -173,6 +190,11 @@ export default function ProductCard({ product }: { product: Product }) {
             <span className="text-xs tracking-widest uppercase font-medium text-brand-700 bg-white/90 px-4 py-2">Sold Out</span>
           </div>
         )}
+        {discountActive && (
+          <span className="absolute top-3 left-3 text-[10px] tracking-widest uppercase bg-brand-900 text-brand-50 px-2 py-1">
+            {product.discount.toFixed(0)}% Off
+          </span>
+        )}
         {user && (
           <div className="absolute top-3 right-3">
             <button
@@ -261,7 +283,23 @@ export default function ProductCard({ product }: { product: Product }) {
               : null
           }
         </div>
-        <p className="font-body text-sm text-brand-700">${product.price.toFixed(2)}</p>
+        {discountActive ? (
+          <div className="flex items-baseline gap-2">
+            <p className="font-body text-sm text-brand-900">
+              ${getDiscountedPrice(product).toFixed(2)}
+            </p>
+            <p className="font-body text-xs text-brand-400 line-through">
+              ${product.price.toFixed(2)}
+            </p>
+          </div>
+        ) : (
+          <p className="font-body text-sm text-brand-700">${product.price.toFixed(2)}</p>
+        )}
+        {discountActive && product.discountName && (
+          <p className="text-[10px] text-brand-500 uppercase tracking-widest">
+            {product.discountName}
+          </p>
+        )}
       </div>
     </Link>
   );

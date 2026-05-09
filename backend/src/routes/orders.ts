@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { authenticate } from "../middleware/auth";
-import { createOrder, listOrders, getOrder } from "../services/orderService";
+import { authenticate, authorize } from "../middleware/auth";
+import { createOrder, listOrders, getOrder, listAllOrders } from "../services/orderService";
 import { generateInvoicePdf, sendInvoiceEmail } from "../services/invoiceService";
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
@@ -73,6 +73,16 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const orders = await listOrders(req.user!.userId);
+    res.json(orders);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/orders/admin — list all orders (sales manager only)
+router.get("/admin", authorize("sales_manager"), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const orders = await listAllOrders();
     res.json(orders);
   } catch (err) {
     next(err);
