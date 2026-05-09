@@ -1,5 +1,6 @@
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
+import { getEffectivePrice } from "./discountUtils";
 
 interface AddressSnapshot {
   fullName: string;
@@ -48,7 +49,7 @@ export async function createOrder(userId: number, address: AddressSnapshot) {
         throw new AppError(400, `Insufficient stock for "${product.name}". Available: ${product.stockQty}`);
       }
 
-      const unitPrice = Number(product.price);
+      const unitPrice = getEffectivePrice(product);
       const lineTotal = Math.round(unitPrice * ci.quantity * 100) / 100;
       totalAmount += lineTotal;
 
@@ -97,6 +98,15 @@ export async function listOrders(userId: number) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     include: { items: true },
+  });
+
+  return orders.map(formatOrder);
+}
+
+export async function listAllOrders() {
+  const orders = await prisma.order.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { items: true, user: { select: { id: true, name: true, email: true } } },
   });
 
   return orders.map(formatOrder);
