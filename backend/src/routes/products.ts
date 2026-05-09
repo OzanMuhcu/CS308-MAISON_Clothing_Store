@@ -45,6 +45,10 @@ router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
 const updateSchema = z.object({
   price: z.number().nonnegative().optional(),
   discount: z.number().nonnegative().optional(),
+  discountName: z.string().trim().max(60).optional().nullable(),
+  discountType: z.string().trim().max(40).optional().nullable(),
+  discountStartsAt: z.string().datetime().optional().nullable(),
+  discountEndsAt: z.string().datetime().optional().nullable(),
 });
 
 // PATCH /api/products/:id (sales manager only)
@@ -57,7 +61,14 @@ router.patch(
       const id = parseInt(req.params.id as string, 10);
       if (isNaN(id)) { res.status(400).json({ error: "Invalid product ID" }); return; }
       const data = updateSchema.parse(req.body);
-      const updated = await updateProduct(id, data);
+      const updated = await updateProduct(id, {
+        price: data.price,
+        discount: data.discount,
+        discountName: data.discountName === "" ? null : data.discountName,
+        discountType: data.discountType === "" ? null : data.discountType,
+        discountStartsAt: data.discountStartsAt ? new Date(data.discountStartsAt) : data.discountStartsAt === null ? null : undefined,
+        discountEndsAt: data.discountEndsAt ? new Date(data.discountEndsAt) : data.discountEndsAt === null ? null : undefined,
+      });
       res.json({ product: updated });
     } catch (err) {
       next(err);

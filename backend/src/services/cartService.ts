@@ -1,6 +1,7 @@
 import { z } from "zod";
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
+import { getEffectivePrice } from "./discountUtils";
 
 export const addToCartSchema = z.object({
   productId: z.number().int().positive(),
@@ -28,7 +29,7 @@ function formatCartItem(item: any) {
     product: {
       id: item.product.id,
       name: item.product.name,
-      price: Number(item.product.price),
+      price: getEffectivePrice(item.product),
       stockQty: item.product.stockQty,
       sku: item.product.sku,
       imageUrl: item.product.imageUrl,

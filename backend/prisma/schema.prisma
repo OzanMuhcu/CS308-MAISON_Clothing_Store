@@ -76,6 +76,10 @@ model Product {
   description     String   @default("")
   price           Decimal  @db.Decimal(10, 2)
   discount        Decimal  @default(0) @db.Decimal(5, 2)
+  discountName    String?  @map("discount_name")
+  discountType    String?  @map("discount_type")
+  discountStartsAt DateTime? @map("discount_starts_at")
+  discountEndsAt  DateTime? @map("discount_ends_at")
   stockQty        Int      @default(0) @map("stock_qty")
   sku             String   @unique
   imageUrl        String   @default("") @map("image_url")
