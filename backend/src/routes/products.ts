@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { listProducts, getProduct, getCategories } from "../services/productService";
+import { z } from "zod";
+import { listProducts, getProduct, getCategories, updateProduct } from "../services/productService";
+import { authenticate, authorize } from "../middleware/auth";
 
 const router = Router();
 
@@ -39,5 +41,28 @@ router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
     next(err);
   }
 });
+
+const updateSchema = z.object({
+  price: z.number().nonnegative().optional(),
+  discount: z.number().nonnegative().optional(),
+});
+
+// PATCH /api/products/:id (sales manager only)
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("sales_manager"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      if (isNaN(id)) { res.status(400).json({ error: "Invalid product ID" }); return; }
+      const data = updateSchema.parse(req.body);
+      const updated = await updateProduct(id, data);
+      res.json({ product: updated });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 export default router;

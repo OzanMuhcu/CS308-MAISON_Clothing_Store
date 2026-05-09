@@ -32,6 +32,7 @@ export async function listProducts(query: {
     name: p.name,
     description: p.description,
     price: Number(p.price),
+    discount: Number(p.discount ?? 0),
     stockQty: p.stockQty,
     sku: p.sku,
     imageUrl: p.imageUrl,
@@ -54,6 +55,7 @@ export async function getProduct(id: number) {
     name: product.name,
     description: product.description,
     price: Number(product.price),
+    discount: Number(product.discount ?? 0),
     stockQty: product.stockQty,
     sku: product.sku,
     imageUrl: product.imageUrl,
@@ -74,4 +76,42 @@ export async function getCategories() {
     orderBy: { category: "asc" },
   });
   return products.map((p: any) => p.category).filter(Boolean);
+}
+
+export async function updateProduct(id: number, data: { price?: number; discount?: number }) {
+  const product = await prisma.product.findUnique({ where: { id } });
+  if (!product) throw new AppError(404, "Product not found");
+
+  const updateData: { price?: number; discount?: number } = {};
+  if (typeof data.price === "number") {
+    if (Number.isNaN(data.price) || data.price < 0) {
+      throw new AppError(400, "Invalid price");
+    }
+    updateData.price = data.price;
+  }
+  if (typeof data.discount === "number") {
+    if (Number.isNaN(data.discount) || data.discount < 0) {
+      throw new AppError(400, "Invalid discount");
+    }
+    updateData.discount = data.discount;
+  }
+
+  const updated = await prisma.product.update({ where: { id }, data: updateData });
+  return {
+    id: updated.id,
+    name: updated.name,
+    description: updated.description,
+    price: Number(updated.price),
+    discount: Number(updated.discount ?? 0),
+    stockQty: updated.stockQty,
+    sku: updated.sku,
+    imageUrl: updated.imageUrl,
+    category: updated.category,
+    model: updated.model,
+    serialNumber: updated.serialNumber,
+    warrantyStatus: updated.warrantyStatus,
+    distributorInfo: updated.distributorInfo,
+    avgRating: updated.avgRating,
+    ratingCount: updated.ratingCount,
+  };
 }
