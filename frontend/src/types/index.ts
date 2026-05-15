@@ -101,6 +101,19 @@ export interface Order {
   user?: { id: number; name: string; email: string };
 }
 
+export interface RefundRequest {
+  id: number;
+  orderId: number;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface RefundRequestAdmin extends RefundRequest {
+  user: { id: number; name: string; email: string };
+  order: Order;
+}
+
 // Wishlist
 export interface WishlistItem {
   id: number;

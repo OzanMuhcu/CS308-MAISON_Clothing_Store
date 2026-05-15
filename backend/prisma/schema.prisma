@@ -17,6 +17,8 @@ enum OrderStatus {
   processing
   in_transit
   delivered
+  cancelled
+  refunded
 }
 
 enum CommentStatus {
@@ -25,27 +27,35 @@ enum CommentStatus {
   rejected
 }
 
+enum RefundStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
-  id                         Int      @id @default(autoincrement())
-  name                       String
-  email                      String   @unique
-  passwordHash               String   @map("password_hash")
-  passwordChangeCode         String?  @map("password_change_code")
+  id                          Int       @id @default(autoincrement())
+  name                        String
+  email                       String    @unique
+  passwordHash                String    @map("password_hash")
+  passwordChangeCode          String?   @map("password_change_code")
   passwordChangeCodeExpiresAt DateTime? @map("password_change_code_expires_at")
-  passwordChangeNewHash      String?  @map("password_change_new_hash")
-  role                       Role     @default(customer)
+  passwordChangeNewHash       String?   @map("password_change_new_hash")
+  role                        Role      @default(customer)
   /// Story 14: nullable JSON default delivery address snapshot.
   /// Shape: { fullName, line1, line2?, city, postalCode, country }
-  defaultAddress             Json?    @map("default_address")
-  createdAt                  DateTime @default(now()) @map("created_at")
+  defaultAddress              Json?     @map("default_address")
+  createdAt                   DateTime  @default(now()) @map("created_at")
 
-  savedCards    SavedCard[]
-  cartItems     CartItem[]
-  orders        Order[]
-  addresses     UserAddress[]
-  wishlists     Wishlist[]
-  ratings       Rating[]
-  comments      Comment[]
+  savedCards SavedCard[]
+  cartItems  CartItem[]
+  orders     Order[]
+  addresses  UserAddress[]
+  wishlists  Wishlist[]
+  ratings    Rating[]
+  comments   Comment[]
+
+  refundRequests RefundRequest[]
 
   @@map("users")
 }
@@ -71,26 +81,26 @@ model UserAddress {
 }
 
 model Product {
-  id              Int      @id @default(autoincrement())
-  name            String
-  description     String   @default("")
-  price           Decimal  @db.Decimal(10, 2)
-  discount        Decimal  @default(0) @db.Decimal(5, 2)
-  discountName    String?  @map("discount_name")
-  discountType    String?  @map("discount_type")
+  id               Int       @id @default(autoincrement())
+  name             String
+  description      String    @default("")
+  price            Decimal   @db.Decimal(10, 2)
+  discount         Decimal   @default(0) @db.Decimal(5, 2)
+  discountName     String?   @map("discount_name")
+  discountType     String?   @map("discount_type")
   discountStartsAt DateTime? @map("discount_starts_at")
-  discountEndsAt  DateTime? @map("discount_ends_at")
-  stockQty        Int      @default(0) @map("stock_qty")
-  sku             String   @unique
-  imageUrl        String   @default("") @map("image_url")
-  category        String   @default("")
-  model           String   @default("")
-  serialNumber    String   @unique @map("serial_number")
-  warrantyStatus  String   @default("None") @map("warranty_status")
-  distributorInfo String   @default("") @map("distributor_info")
-  avgRating       Float    @default(0) @map("avg_rating")
-  ratingCount     Int      @default(0) @map("rating_count")
-  createdAt       DateTime @default(now()) @map("created_at")
+  discountEndsAt   DateTime? @map("discount_ends_at")
+  stockQty         Int       @default(0) @map("stock_qty")
+  sku              String    @unique
+  imageUrl         String    @default("") @map("image_url")
+  category         String    @default("")
+  model            String    @default("")
+  serialNumber     String    @unique @map("serial_number")
+  warrantyStatus   String    @default("None") @map("warranty_status")
+  distributorInfo  String    @default("") @map("distributor_info")
+  avgRating        Float     @default(0) @map("avg_rating")
+  ratingCount      Int       @default(0) @map("rating_count")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   cartItems     CartItem[]
   orderItems    OrderItem[]
@@ -141,17 +151,34 @@ model CartItem {
 model Order {
   id          Int         @id @default(autoincrement())
   userId      Int         @map("user_id")
-  totalAmount Decimal     @db.Decimal(10, 2) @map("total_amount")
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
   status      OrderStatus @default(processing)
   address     Json        @default("{}")
   invoiceNo   String?     @unique @map("invoice_no")
   createdAt   DateTime    @default(now()) @map("created_at")
 
-  user  User        @relation(fields: [userId], references: [id])
-  items OrderItem[]
+  user          User           @relation(fields: [userId], references: [id])
+  items         OrderItem[]
+  refundRequest RefundRequest?
 
   @@index([userId])
   @@map("orders")
+}
+
+model RefundRequest {
+  id         Int          @id @default(autoincrement())
+  orderId    Int          @unique @map("order_id")
+  userId     Int          @map("user_id")
+  status     RefundStatus @default(pending)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  resolvedAt DateTime?    @map("resolved_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+  @@map("refund_requests")
 }
 
 /// Snapshot of product info at time of purchase — immune to later edits.
@@ -160,9 +187,9 @@ model OrderItem {
   orderId     Int     @map("order_id")
   productId   Int     @map("product_id")
   productName String  @map("product_name")
-  unitPrice   Decimal @db.Decimal(10, 2) @map("unit_price")
+  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
   quantity    Int
-  lineTotal   Decimal @db.Decimal(10, 2) @map("line_total")
+  lineTotal   Decimal @map("line_total") @db.Decimal(10, 2)
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
@@ -187,10 +214,10 @@ model Wishlist {
 
 /// Wishlist: members-only, supports add/remove. Out-of-stock products allowed.
 model WishlistItem {
-  id        Int      @id @default(autoincrement())
-  wishlistId Int     @map("wishlist_id")
-  productId Int      @map("product_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  id         Int      @id @default(autoincrement())
+  wishlistId Int      @map("wishlist_id")
+  productId  Int      @map("product_id")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
   product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
