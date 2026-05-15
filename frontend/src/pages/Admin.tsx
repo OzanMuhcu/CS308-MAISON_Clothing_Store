@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
-import type { Order, Product } from "../types";
+import type { Order, Product, RefundRequestAdmin } from "../types";
 
 type DraftValues = {
   price: string;
@@ -19,7 +19,7 @@ const toInputDateTime = (value?: string | null) => {
 };
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState<"products" | "orders">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "refunds">("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
@@ -31,6 +31,10 @@ export default function Admin() {
   const [endDate, setEndDate] = useState("");
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [ordersMessage, setOrdersMessage] = useState("");
+  const [refunds, setRefunds] = useState<RefundRequestAdmin[]>([]);
+  const [refundsLoading, setRefundsLoading] = useState(false);
+  const [refundsMessage, setRefundsMessage] = useState("");
+  const [reviewingId, setReviewingId] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -76,6 +80,20 @@ export default function Admin() {
       })
       .finally(() => setOrdersLoading(false));
   }, [activeTab, startDate, endDate]);
+
+  useEffect(() => {
+    if (activeTab !== "refunds") return;
+    setRefundsLoading(true);
+    setRefundsMessage("");
+    api
+      .get("/orders/admin/refunds")
+      .then(({ data }) => setRefunds(data || []))
+      .catch((err) => {
+        setRefunds([]);
+        setRefundsMessage(err.response?.data?.error || "Unable to load refund requests.");
+      })
+      .finally(() => setRefundsLoading(false));
+  }, [activeTab]);
 
   const updateDraft = (id: number, field: keyof DraftValues, value: string) => {
     setDrafts((prev) => ({
@@ -159,6 +177,21 @@ export default function Admin() {
     }
   };
 
+  const handleReviewRefund = async (requestId: number, status: "approved" | "rejected") => {
+    setReviewingId(requestId);
+    setRefundsMessage("");
+    try {
+      const { data } = await api.patch(`/orders/admin/refunds/${requestId}`, { status });
+      if (data?.request) {
+        setRefunds((prev) => prev.map((r) => (r.id === requestId ? { ...r, status: data.request.status, resolvedAt: data.request.resolvedAt } : r)));
+      }
+    } catch (err: any) {
+      setRefundsMessage(err.response?.data?.error || "Unable to update refund request.");
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
   const revenueByDate = orders.reduce<Record<string, number>>((acc, order) => {
     const key = new Date(order.createdAt).toISOString().slice(0, 10);
     acc[key] = (acc[key] || 0) + order.totalAmount;
@@ -203,6 +236,16 @@ export default function Admin() {
           onClick={() => setActiveTab("orders")}
         >
           Orders
+        </button>
+        <button
+          className={`text-xs tracking-widest uppercase font-medium pb-3 ${
+            activeTab === "refunds"
+              ? "text-brand-900 border-b-2 border-brand-900"
+              : "text-brand-400"
+          }`}
+          onClick={() => setActiveTab("refunds")}
+        >
+          Refunds
         </button>
       </div>
 
@@ -416,6 +459,83 @@ export default function Admin() {
                 ))}
               </div>
             )}
+          </div>
+        )
+      ) : activeTab === "refunds" ? (
+        refundsLoading ? (
+          <div className="flex justify-center py-20">
+            <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : refunds.length === 0 ? (
+          <div className="text-center py-16 border border-brand-100">
+            <p className="text-sm text-brand-500">No refund requests available.</p>
+            {refundsMessage && <p className="text-xs text-red-600 mt-2">{refundsMessage}</p>}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {refundsMessage && (
+              <div className="px-4 py-3 bg-brand-100 border border-brand-200 text-sm text-brand-700 rounded">
+                {refundsMessage}
+              </div>
+            )}
+            {refunds.map((request) => (
+              <div key={request.id} className="border border-brand-200 bg-white p-5">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                  <div>
+                    <p className="text-xs tracking-widest uppercase text-brand-400">Refund Request</p>
+                    <h2 className="text-lg text-brand-900 font-semibold">
+                      {request.order.invoiceNo || `Order #${request.order.id}`}
+                    </h2>
+                    <p className="text-xs text-brand-500">
+                      Requested {new Date(request.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-brand-900">${request.order.totalAmount.toFixed(2)}</p>
+                    <span className={`inline-block mt-1 text-[10px] tracking-wider uppercase px-2 py-0.5 border ${
+                      request.status === "approved"
+                        ? "bg-green-50 text-green-700 border-green-200"
+                        : request.status === "rejected"
+                        ? "bg-red-50 text-red-700 border-red-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}>
+                      {request.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 text-sm text-brand-600">
+                  <span className="font-medium text-brand-800">Customer:</span> {request.user.name} ({request.user.email})
+                </div>
+                <div className="mt-3 text-xs text-brand-500">
+                  {request.order.items.map((item) => `${item.productName} x${item.quantity}`).join(", ")}
+                </div>
+                {request.status === "pending" && (
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleReviewRefund(request.id, "approved")}
+                      disabled={reviewingId === request.id}
+                      className="btn-primary text-xs px-4 py-2 disabled:opacity-60"
+                    >
+                      {reviewingId === request.id ? "Saving..." : "Approve"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReviewRefund(request.id, "rejected")}
+                      disabled={reviewingId === request.id}
+                      className="border border-brand-300 text-brand-600 hover:bg-brand-50 px-4 py-2 text-xs tracking-widest uppercase font-medium disabled:opacity-60"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+                {request.status !== "pending" && request.resolvedAt && (
+                  <p className="mt-3 text-xs text-brand-400">
+                    Resolved {new Date(request.resolvedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         )
       ) : null}
