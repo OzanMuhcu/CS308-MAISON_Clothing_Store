@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { authenticate, authorize } from "../middleware/auth";
-import { createOrder, listOrders, getOrder, listAllOrders } from "../services/orderService";
+import { createOrder, listOrders, getOrder, listAllOrders, getOrderForAdmin } from "../services/orderService";
 import { generateInvoicePdf, sendInvoiceEmail } from "../services/invoiceService";
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
@@ -80,10 +80,60 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // GET /api/orders/admin — list all orders (sales manager only)
-router.get("/admin", authorize("sales_manager"), async (_req: Request, res: Response, next: NextFunction) => {
+router.get("/admin", authorize("sales_manager"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const orders = await listAllOrders();
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    let rangeStart: Date | undefined;
+    let rangeEnd: Date | undefined;
+
+    if (startDate) {
+      const parsed = new Date(startDate);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid startDate" });
+        return;
+      }
+      rangeStart = new Date(parsed.toISOString().slice(0, 10) + "T00:00:00.000Z");
+    }
+
+    if (endDate) {
+      const parsed = new Date(endDate);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid endDate" });
+        return;
+      }
+      const endOfDay = new Date(parsed.toISOString().slice(0, 10) + "T23:59:59.999Z");
+      rangeEnd = endOfDay;
+    }
+
+    const orders = await listAllOrders({ startDate: rangeStart, endDate: rangeEnd });
     res.json(orders);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/orders/admin/:id/invoice — admin invoice download
+router.get("/admin/:id/invoice", authorize("sales_manager"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const orderId = parseInt(req.params.id as string, 10);
+    if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order ID" }); return; }
+
+    const order = await getOrderForAdmin(orderId);
+    if (!order.user) throw new AppError(404, "User not found");
+
+    const pdfBuffer = await generateInvoicePdf({
+      invoiceNo: order.invoiceNo || `ORD-${order.id}`,
+      date: new Date(order.createdAt),
+      customerName: order.user.name,
+      customerEmail: order.user.email,
+      address: order.address as any,
+      items: order.items,
+      totalAmount: order.totalAmount,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${order.invoiceNo || "invoice"}.pdf"`);
+    res.send(pdfBuffer);
   } catch (err) {
     next(err);
   }

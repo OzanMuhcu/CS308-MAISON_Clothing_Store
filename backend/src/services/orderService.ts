@@ -103,8 +103,16 @@ export async function listOrders(userId: number) {
   return orders.map(formatOrder);
 }
 
-export async function listAllOrders() {
+export async function listAllOrders(range?: { startDate?: Date; endDate?: Date }) {
+  const where: any = {};
+  if (range?.startDate || range?.endDate) {
+    where.createdAt = {};
+    if (range.startDate) where.createdAt.gte = range.startDate;
+    if (range.endDate) where.createdAt.lte = range.endDate;
+  }
+
   const orders = await prisma.order.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     include: { items: true, user: { select: { id: true, name: true, email: true } } },
   });
@@ -120,6 +128,17 @@ export async function getOrder(userId: number, orderId: number) {
 
   if (!order) throw new AppError(404, "Order not found");
   if (order.userId !== userId) throw new AppError(403, "Access denied");
+
+  return formatOrder(order);
+}
+
+export async function getOrderForAdmin(orderId: number) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true, user: { select: { id: true, name: true, email: true } } },
+  });
+
+  if (!order) throw new AppError(404, "Order not found");
 
   return formatOrder(order);
 }
