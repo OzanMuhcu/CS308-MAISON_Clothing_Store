@@ -1,7 +1,18 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { authenticate, authorize } from "../middleware/auth";
-import { createOrder, listOrders, getOrder, listAllOrders, getOrderForAdmin } from "../services/orderService";
+import {
+  createOrder,
+  listOrders,
+  getOrder,
+  listAllOrders,
+  getOrderForAdmin,
+  cancelOrder,
+  requestRefund,
+  listRefundRequestsForUser,
+  listRefundRequestsForAdmin,
+  reviewRefundRequest,
+} from "../services/orderService";
 import { generateInvoicePdf, sendInvoiceEmail } from "../services/invoiceService";
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
@@ -79,6 +90,40 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+// GET /api/orders/refunds — list user's refund requests
+router.get("/refunds", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const requests = await listRefundRequestsForUser(req.user!.userId);
+    res.json(requests);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/orders/:id/cancel — cancel processing order
+router.post("/:id/cancel", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const orderId = parseInt(req.params.id as string, 10);
+    if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order ID" }); return; }
+    const order = await cancelOrder(req.user!.userId, orderId);
+    res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/orders/:id/refund-request — request refund
+router.post("/:id/refund-request", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const orderId = parseInt(req.params.id as string, 10);
+    if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order ID" }); return; }
+    const request = await requestRefund(req.user!.userId, orderId);
+    res.status(201).json({ request });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/orders/admin — list all orders (sales manager only)
 router.get("/admin", authorize("sales_manager"), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -107,6 +152,33 @@ router.get("/admin", authorize("sales_manager"), async (req: Request, res: Respo
 
     const orders = await listAllOrders({ startDate: rangeStart, endDate: rangeEnd });
     res.json(orders);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/orders/admin/refunds — list refund requests (sales manager only)
+router.get("/admin/refunds", authorize("sales_manager"), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const requests = await listRefundRequestsForAdmin();
+    res.json(requests);
+  } catch (err) {
+    next(err);
+  }
+});
+
+const refundReviewSchema = z.object({
+  status: z.enum(["approved", "rejected"]),
+});
+
+// PATCH /api/orders/admin/refunds/:id — approve or reject refund
+router.patch("/admin/refunds/:id", authorize("sales_manager"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const refundId = parseInt(req.params.id as string, 10);
+    if (isNaN(refundId)) { res.status(400).json({ error: "Invalid refund ID" }); return; }
+    const { status } = refundReviewSchema.parse(req.body);
+    const updated = await reviewRefundRequest(refundId, status);
+    res.json({ request: updated });
   } catch (err) {
     next(err);
   }
