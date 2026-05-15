@@ -50,7 +50,11 @@ export async function listProducts(query: {
   if (query.sort === "price_asc") orderBy = { price: "asc" };
   else if (query.sort === "price_desc") orderBy = { price: "desc" };
   else if (query.sort === "name_asc") orderBy = { name: "asc" };
-  else if (query.sort === "rating_desc") orderBy = { avgRating: "desc" };
+  else if (query.sort === "rating_desc") {
+    orderBy = [{ avgRating: "desc" }, { ratingCount: "desc" }, { createdAt: "desc" }];
+  } else if (query.sort === "popularity_desc") {
+    orderBy = [{ ratingCount: "desc" }, { avgRating: "desc" }, { createdAt: "desc" }];
+  }
 
   const products = await prisma.product.findMany({ where, orderBy });
 
