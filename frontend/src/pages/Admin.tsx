@@ -27,6 +27,10 @@ export default function Admin() {
   const [rowStatus, setRowStatus] = useState<Record<number, string>>({});
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [ordersMessage, setOrdersMessage] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -57,12 +61,21 @@ export default function Admin() {
   useEffect(() => {
     if (activeTab !== "orders") return;
     setOrdersLoading(true);
+    setOrdersMessage("");
     api
-      .get("/orders/admin")
+      .get("/orders/admin", {
+        params: {
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        },
+      })
       .then(({ data }) => setOrders(data || []))
-      .catch(() => setOrders([]))
+      .catch((err) => {
+        setOrders([]);
+        setOrdersMessage(err.response?.data?.error || "Unable to load orders.");
+      })
       .finally(() => setOrdersLoading(false));
-  }, [activeTab]);
+  }, [activeTab, startDate, endDate]);
 
   const updateDraft = (id: number, field: keyof DraftValues, value: string) => {
     setDrafts((prev) => ({
@@ -124,6 +137,42 @@ export default function Admin() {
       setSavingId(null);
     }
   };
+
+  const handleDownloadInvoice = async (order: Order) => {
+    setDownloadingId(order.id);
+    setOrdersMessage("");
+    try {
+      const response = await api.get(`/orders/admin/${order.id}/invoice`, { responseType: "blob" });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${order.invoiceNo || `order-${order.id}`}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setOrdersMessage(err.response?.data?.error || "Unable to download invoice.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const revenueByDate = orders.reduce<Record<string, number>>((acc, order) => {
+    const key = new Date(order.createdAt).toISOString().slice(0, 10);
+    acc[key] = (acc[key] || 0) + order.totalAmount;
+    return acc;
+  }, {});
+
+  const revenueSeries = Object.entries(revenueByDate)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([date, revenue]) => ({
+      date,
+      revenue: Math.round(revenue * 100) / 100,
+    }));
+
+  const maxRevenue = revenueSeries.reduce((max, item) => Math.max(max, item.revenue), 0) || 1;
 
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
@@ -262,37 +311,111 @@ export default function Admin() {
           <div className="flex justify-center py-20">
             <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-16 border border-brand-100">
-            <p className="text-sm text-brand-500">No orders available.</p>
-          </div>
         ) : (
-          <div className="space-y-4">
-            {orders.map((order) => (
-              <div key={order.id} className="border border-brand-200 bg-white p-5">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div>
-                    <p className="text-xs tracking-widest uppercase text-brand-400">Order</p>
-                    <h2 className="text-lg text-brand-900 font-semibold">{order.invoiceNo || `Order #${order.id}`}</h2>
-                    <p className="text-xs text-brand-500">{new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-brand-900">${order.totalAmount.toFixed(2)}</p>
-                    <span className="inline-block mt-1 text-[10px] tracking-wider uppercase px-2 py-0.5 bg-brand-50 text-brand-700 border border-brand-200">
-                      {order.status}
-                    </span>
-                  </div>
+          <div className="space-y-6">
+            <div className="border border-brand-200 bg-white p-4">
+              <div className="flex flex-wrap gap-4 items-end">
+                <div>
+                  <label className="input-label">Start Date</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="input-field"
+                  />
                 </div>
-                {order.user && (
-                  <div className="mt-3 text-sm text-brand-600">
-                    <span className="font-medium text-brand-800">Customer:</span> {order.user.name} ({order.user.email})
-                  </div>
+                <div>
+                  <label className="input-label">End Date</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                {(startDate || endDate) && (
+                  <button
+                    type="button"
+                    onClick={() => { setStartDate(""); setEndDate(""); }}
+                    className="border border-brand-300 text-brand-600 hover:bg-brand-50 px-4 py-2 text-xs tracking-widest uppercase font-medium"
+                  >
+                    Clear Filters
+                  </button>
                 )}
-                <div className="mt-3 text-xs text-brand-500">
-                  {order.items.map((item) => `${item.productName} x${item.quantity}`).join(", ")}
-                </div>
               </div>
-            ))}
+              {ordersMessage && (
+                <p className="mt-3 text-xs text-red-600">{ordersMessage}</p>
+              )}
+            </div>
+
+            <div className="border border-brand-200 bg-white p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm tracking-widest uppercase text-brand-600">Revenue</h3>
+                <p className="text-xs text-brand-500">{revenueSeries.length} {revenueSeries.length === 1 ? "day" : "days"}</p>
+              </div>
+              {revenueSeries.length === 0 ? (
+                <p className="text-sm text-brand-500">No revenue data for the selected range.</p>
+              ) : (
+                <div className="flex items-end gap-3 h-36">
+                  {revenueSeries.map((item) => (
+                    <div key={item.date} className="flex-1 min-w-[28px] flex flex-col items-center gap-2">
+                      <div
+                        className="w-full bg-brand-900/80 rounded-t"
+                        style={{ height: `${Math.max(8, (item.revenue / maxRevenue) * 120)}px` }}
+                        title={`$${item.revenue.toFixed(2)} on ${item.date}`}
+                      />
+                      <span className="text-[10px] text-brand-500">
+                        {new Date(item.date + "T00:00:00.000Z").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {orders.length === 0 ? (
+              <div className="text-center py-16 border border-brand-100">
+                <p className="text-sm text-brand-500">No orders available.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="border border-brand-200 bg-white p-5">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                      <div>
+                        <p className="text-xs tracking-widest uppercase text-brand-400">Order</p>
+                        <h2 className="text-lg text-brand-900 font-semibold">{order.invoiceNo || `Order #${order.id}`}</h2>
+                        <p className="text-xs text-brand-500">{new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-brand-900">${order.totalAmount.toFixed(2)}</p>
+                        <span className="inline-block mt-1 text-[10px] tracking-wider uppercase px-2 py-0.5 bg-brand-50 text-brand-700 border border-brand-200">
+                          {order.status}
+                        </span>
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadInvoice(order)}
+                            disabled={downloadingId === order.id}
+                            className="border border-brand-300 text-brand-600 hover:bg-brand-50 px-3 py-1.5 text-[10px] tracking-widest uppercase font-medium disabled:opacity-60"
+                          >
+                            {downloadingId === order.id ? "Downloading..." : "Download Invoice"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    {order.user && (
+                      <div className="mt-3 text-sm text-brand-600">
+                        <span className="font-medium text-brand-800">Customer:</span> {order.user.name} ({order.user.email})
+                      </div>
+                    )}
+                    <div className="mt-3 text-xs text-brand-500">
+                      {order.items.map((item) => `${item.productName} x${item.quantity}`).join(", ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )
       ) : null}
