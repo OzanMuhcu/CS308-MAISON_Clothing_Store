@@ -198,14 +198,123 @@ export default function Admin() {
     return acc;
   }, {});
 
-  const revenueSeries = Object.entries(revenueByDate)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([date, revenue]) => ({
-      date,
-      revenue: Math.round(revenue * 100) / 100,
-    }));
+  const parseDateInput = (value: string) => {
+    if (!value) return null;
+    const parsed = new Date(value + "T00:00:00.000Z");
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
 
+  const getRangeBounds = () => {
+    const start = parseDateInput(startDate);
+    const end = parseDateInput(endDate);
+    if (start || end) {
+      return {
+        start: start || end,
+        end: end || start,
+        isDefault: false,
+      };
+    }
+
+    const today = new Date();
+    const endKey = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    const startKey = new Date(endKey);
+    startKey.setUTCDate(startKey.getUTCDate() - 13);
+    return {
+      start: startKey,
+      end: endKey,
+      isDefault: true,
+    };
+  };
+
+  const range = getRangeBounds();
+  const series: { key: string; label: string; tooltip: string; revenue: number; profit: number }[] = [];
+
+  const formatDayLabel = (value: Date) =>
+    value.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+  const formatRangeLabel = (start: Date, end: Date) =>
+    `${formatDayLabel(start)} - ${formatDayLabel(end)}`;
+
+  const getWeekStart = (value: Date) => {
+    const d = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+    const day = d.getUTCDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setUTCDate(d.getUTCDate() + diff);
+    return d;
+  };
+
+  const effectiveRangeLabel = range.start && range.end
+    ? (range.isDefault
+      ? "Last 14 days"
+      : `${formatDayLabel(range.start)} - ${formatDayLabel(range.end)}`)
+    : "";
+
+  const totalDays = range.start && range.end
+    ? Math.floor((range.end.getTime() - range.start.getTime()) / 86400000) + 1
+    : 0;
+  const useWeekly = totalDays > 14;
+
+  if (range.start && range.end) {
+
+    if (useWeekly) {
+      let cursor = getWeekStart(range.start);
+      while (cursor <= range.end) {
+        const weekStart = new Date(cursor);
+        const weekEnd = new Date(cursor);
+        weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+        if (weekEnd > range.end) {
+          weekEnd.setTime(range.end.getTime());
+        }
+
+        let sum = 0;
+        const dayCursor = new Date(weekStart);
+        while (dayCursor <= weekEnd) {
+          const key = dayCursor.toISOString().slice(0, 10);
+          sum += revenueByDate[key] || 0;
+          dayCursor.setUTCDate(dayCursor.getUTCDate() + 1);
+        }
+
+        const roundedRevenue = Math.round(sum * 100) / 100;
+        const profit = Math.round(roundedRevenue * 0.5 * 100) / 100;
+        const label = formatRangeLabel(weekStart, weekEnd);
+        series.push({
+          key: weekStart.toISOString().slice(0, 10),
+          label,
+          tooltip: `Week: ${label}`,
+          revenue: roundedRevenue,
+          profit,
+        });
+
+        cursor.setUTCDate(cursor.getUTCDate() + 7);
+      }
+    } else {
+      const cursor = new Date(range.start);
+      while (cursor <= range.end) {
+        const key = cursor.toISOString().slice(0, 10);
+        const revenue = Math.round((revenueByDate[key] || 0) * 100) / 100;
+        const profit = Math.round(revenue * 0.5 * 100) / 100;
+        const label = formatDayLabel(cursor);
+        series.push({
+          key,
+          label,
+          tooltip: `${label}`,
+          revenue,
+          profit,
+        });
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+    }
+  }
+
+  const revenueSeries = series;
+  const profitSeries = series;
+  const totalRevenue = revenueSeries.reduce((sum, item) => sum + item.revenue, 0);
+  const totalProfit = Math.round(totalRevenue * 0.5 * 100) / 100;
   const maxRevenue = revenueSeries.reduce((max, item) => Math.max(max, item.revenue), 0) || 1;
+  const maxProfit = profitSeries.reduce((max, item) => Math.max(max, item.profit), 0) || 1;
+  const yMax = Math.max(maxRevenue, maxProfit) || 1;
+  const yTicks = [yMax, yMax / 2, 0];
+  const chartHeight = 140;
 
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
@@ -394,24 +503,66 @@ export default function Admin() {
             <div className="border border-brand-200 bg-white p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm tracking-widest uppercase text-brand-600">Revenue</h3>
-                <p className="text-xs text-brand-500">{revenueSeries.length} {revenueSeries.length === 1 ? "day" : "days"}</p>
+                <p className="text-xs text-brand-500">{effectiveRangeLabel}</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="border border-brand-100 bg-brand-50 px-3 py-2">
+                  <p className="text-[10px] tracking-widest uppercase text-brand-500">Total Revenue</p>
+                  <p className="text-lg font-semibold text-brand-900">${totalRevenue.toFixed(2)}</p>
+                </div>
+                <div className="border border-green-100 bg-green-50/60 px-3 py-2">
+                  <p className="text-[10px] tracking-widest uppercase text-green-700">Total Profit</p>
+                  <p className="text-lg font-semibold text-green-800">${totalProfit.toFixed(2)}</p>
+                </div>
               </div>
               {revenueSeries.length === 0 ? (
                 <p className="text-sm text-brand-500">No revenue data for the selected range.</p>
               ) : (
-                <div className="flex items-end gap-3 h-36">
-                  {revenueSeries.map((item) => (
-                    <div key={item.date} className="flex-1 min-w-[28px] flex flex-col items-center gap-2">
-                      <div
-                        className="w-full bg-brand-900/80 rounded-t"
-                        style={{ height: `${Math.max(8, (item.revenue / maxRevenue) * 120)}px` }}
-                        title={`$${item.revenue.toFixed(2)} on ${item.date}`}
-                      />
-                      <span className="text-[10px] text-brand-500">
-                        {new Date(item.date + "T00:00:00.000Z").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4 text-[10px] text-brand-500">
+                    <span className="uppercase tracking-widest">{useWeekly ? "Weekly" : "Daily"}</span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 bg-brand-900/80 rounded-sm" /> Revenue
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 bg-green-600/80 rounded-sm" /> Profit
+                    </span>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex flex-col justify-between text-[10px] text-brand-400 h-[140px]">
+                      {yTicks.map((tick) => (
+                        <span key={tick}>${tick.toFixed(0)}</span>
+                      ))}
                     </div>
-                  ))}
+                    <div className="relative flex-1">
+                      <div className="absolute inset-0 flex flex-col justify-between">
+                        {[0, 1, 2].map((idx) => (
+                          <div key={idx} className="border-t border-brand-100" />
+                        ))}
+                      </div>
+                      <div className="relative flex items-end gap-2 h-[140px] overflow-hidden">
+                        {profitSeries.map((item) => (
+                          <div key={item.key} className="flex-1 min-w-[32px] flex flex-col items-center gap-2">
+                            <div className="w-full flex items-end gap-1">
+                              <div
+                                className="flex-1 bg-brand-900/80 rounded-t"
+                                style={{ height: `${Math.max(6, (item.revenue / yMax) * (chartHeight - 10))}px` }}
+                                title={`Revenue $${item.revenue.toFixed(2)} | ${item.tooltip}`}
+                              />
+                              <div
+                                className="flex-1 bg-green-600/80 rounded-t"
+                                style={{ height: `${Math.max(4, (item.profit / yMax) * (chartHeight - 10))}px` }}
+                                title={`Profit $${item.profit.toFixed(2)} | ${item.tooltip}`}
+                              />
+                            </div>
+                            <span className="text-[10px] text-brand-500 text-center leading-tight">
+                              {item.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
