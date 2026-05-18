@@ -5,6 +5,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SalesManagerRoute from "./components/SalesManagerRoute";
+import ProductManagerRoute from "./components/ProductManagerRoute";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -17,6 +18,7 @@ import Checkout from "./pages/Checkout";
 import Payment from "./pages/Payment";
 import Wishlist from "./pages/Wishlist";
 import Admin from "./pages/Admin";
+import ProductManagerAdmin from "./pages/ProductManagerAdmin";
 import About from "./pages/About";
 import Careers from "./pages/Careers";
 import Sustainability from "./pages/Sustainability";
@@ -44,6 +46,7 @@ export default function App() {
                 <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
                 <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
                 <Route path="/admin" element={<SalesManagerRoute><Admin /></SalesManagerRoute>} />
+                <Route path="/pm-admin" element={<ProductManagerRoute><ProductManagerAdmin /></ProductManagerRoute>} />
                 <Route path="/about" element={<About />} />
                 <Route path="/careers" element={<Careers />} />
                 <Route path="/sustainability" element={<Sustainability />} />
