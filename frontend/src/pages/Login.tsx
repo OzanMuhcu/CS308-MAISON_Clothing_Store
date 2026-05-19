@@ -24,6 +24,10 @@ export default function Login() {
         navigate("/admin");
         return;
       }
+      if (parsed?.role === "product_manager") {
+        navigate("/pm-admin");
+        return;
+      }
       navigate("/");
     }
     catch (err: any) { setServerError(err.response?.data?.error || "Something went wrong. Please try again."); }
