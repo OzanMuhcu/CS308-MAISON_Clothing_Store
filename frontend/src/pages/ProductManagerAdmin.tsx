@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../services/api";
+import type { Category } from "../types";
 
 type Tab = "products" | "categories" | "orders" | "comments";
 
@@ -24,6 +25,13 @@ export default function ProductManagerAdmin() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
+
   useEffect(() => {
     if (tab === "products" || tab === "categories") {
       setLoading(true);
@@ -35,7 +43,64 @@ export default function ProductManagerAdmin() {
     }
   }, [tab]);
 
-  const categories = Array.from(new Set(products.map((p) => p.category))).sort();
+  useEffect(() => {
+    if (tab !== "categories") return;
+    setCategoriesLoading(true);
+    api
+      .get("/categories")
+      .then(({ data }) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]))
+      .finally(() => setCategoriesLoading(false));
+  }, [tab]);
+
+  const productCountFor = (name: string) =>
+    products.filter((p) => p.category === name).length;
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newCategoryName.trim();
+    if (!name) {
+      setCategoryError("Category name is required.");
+      return;
+    }
+    setCategoryError(null);
+    setCreatingCategory(true);
+    try {
+      const { data } = await api.post<Category>("/categories", { name });
+      // Insert sorted by name to match server ordering.
+      setCategories((prev) =>
+        [...prev.filter((c) => c.id !== data.id), data].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        )
+      );
+      setNewCategoryName("");
+    } catch (err: any) {
+      setCategoryError(err?.response?.data?.error || "Failed to create category.");
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (cat: Category) => {
+    const count = productCountFor(cat.name);
+    const productNote =
+      count > 0
+        ? `\n\n${count} product${count !== 1 ? "s" : ""} currently in this category will be hidden from the storefront.`
+        : "";
+    if (!window.confirm(`Remove "${cat.name}" from the storefront?${productNote}`)) {
+      return;
+    }
+    setDeletingCategoryId(cat.id);
+    setCategoryError(null);
+    try {
+      await api.delete(`/categories/${cat.id}`);
+      setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+    } catch (err: any) {
+      setCategoryError(err?.response?.data?.error || "Failed to remove category.");
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
@@ -117,26 +182,72 @@ export default function ProductManagerAdmin() {
       {tab === "categories" && (
         <>
           <h2 className="text-xl font-semibold text-brand-900 mb-6">Categories</h2>
-          {loading ? (
+
+          <form
+            onSubmit={handleCreateCategory}
+            className="border border-brand-200 bg-white p-5 mb-6"
+          >
+            <label className="input-label" htmlFor="new-category-name">
+              Add a New Category
+            </label>
+            <div className="flex flex-col sm:flex-row gap-3 mt-2">
+              <input
+                id="new-category-name"
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="e.g. Outerwear"
+                className="input-field flex-1"
+                maxLength={60}
+                disabled={creatingCategory}
+              />
+              <button
+                type="submit"
+                disabled={creatingCategory || !newCategoryName.trim()}
+                className="btn-primary whitespace-nowrap"
+              >
+                {creatingCategory ? "Adding..." : "Add Category"}
+              </button>
+            </div>
+            {categoryError && <p className="input-error mt-3">{categoryError}</p>}
+          </form>
+
+          {categoriesLoading || loading ? (
             <div className="flex justify-center py-20">
               <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {categories.map((cat) => {
-                const count = products.filter((p) => p.category === cat).length;
+                const count = productCountFor(cat.name);
+                const isDeleting = deletingCategoryId === cat.id;
                 return (
-                  <div key={cat} className="border border-brand-200 p-5 bg-white">
-                    <p className="font-medium text-brand-900">{cat}</p>
-                    <p className="text-sm text-brand-400 mt-1">
-                      {count} product{count !== 1 ? "s" : ""}
-                    </p>
+                  <div
+                    key={cat.id}
+                    className={`border border-brand-200 p-5 bg-white flex flex-col justify-between gap-3 transition-opacity ${
+                      isDeleting ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div>
+                      <p className="font-medium text-brand-900">{cat.name}</p>
+                      <p className="text-sm text-brand-400 mt-1">
+                        {count} product{count !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategory(cat)}
+                      disabled={isDeleting}
+                      className="text-xs tracking-widest uppercase text-red-600 hover:text-red-800 transition-colors self-start"
+                    >
+                      {isDeleting ? "Removing..." : "Remove"}
+                    </button>
                   </div>
                 );
               })}
               {categories.length === 0 && (
                 <p className="text-brand-400 col-span-full py-12 text-center text-sm">
-                  No categories found.
+                  No categories yet — add one above.
                 </p>
               )}
             </div>
