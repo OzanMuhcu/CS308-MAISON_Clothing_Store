@@ -56,6 +56,12 @@ export default function ProductManagerAdmin() {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [moderating, setModerating] = useState<number | null>(null);
 
+  // Orders state
+  const [pmOrders, setPmOrders] = useState<any[]>([]);
+  const [pmOrdersLoading, setPmOrdersLoading] = useState(false);
+  const [pmStatusUpdating, setPmStatusUpdating] = useState<number | null>(null);
+  const [pmOrdersError, setPmOrdersError] = useState("");
+
   // Product creation form
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -88,6 +94,15 @@ export default function ProductManagerAdmin() {
         .then(({ data }) => setComments(Array.isArray(data) ? data : []))
         .catch(console.error)
         .finally(() => setCommentsLoading(false));
+    }
+    if (tab === "orders") {
+      setPmOrdersLoading(true);
+      setPmOrdersError("");
+      api
+        .get("/orders/manager")
+        .then(({ data }) => setPmOrders(Array.isArray(data) ? data : []))
+        .catch((err) => setPmOrdersError(err.response?.data?.error || "Failed to load orders."))
+        .finally(() => setPmOrdersLoading(false));
     }
   }, [tab]);
 
@@ -198,6 +213,18 @@ export default function ProductManagerAdmin() {
       console.error(err.response?.data?.error || "Failed to update visibility.");
     } finally {
       setToggling(null);
+    }
+  }
+
+  async function handleUpdateOrderStatus(orderId: number, status: "in_transit" | "delivered") {
+    setPmStatusUpdating(orderId);
+    try {
+      const { data } = await api.patch(`/orders/manager/${orderId}/status`, { status });
+      setPmOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, ...data.order } : o));
+    } catch (err: any) {
+      setPmOrdersError(err.response?.data?.error || "Failed to update status.");
+    } finally {
+      setPmStatusUpdating(null);
     }
   }
 
@@ -601,13 +628,95 @@ export default function ProductManagerAdmin() {
         </>
       )}
 
-      {/* Orders — stub for future sprint */}
+      {/* Orders */}
       {tab === "orders" && (
-        <div className="py-20 text-center">
-          <p className="text-brand-400 text-sm">
-            Order management for product managers will be available in a future update.
-          </p>
-        </div>
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-brand-900">All Orders</h2>
+            {pmOrders.length > 0 && (
+              <span className="text-sm text-brand-500">{pmOrders.length} orders</span>
+            )}
+          </div>
+          {pmOrdersError && (
+            <p className="mb-4 text-sm text-red-600">{pmOrdersError}</p>
+          )}
+          {pmOrdersLoading ? (
+            <div className="flex justify-center py-20">
+              <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : pmOrders.length === 0 ? (
+            <p className="text-center text-brand-400 py-12 text-sm">No orders found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-brand-200">
+                    <th className="text-left py-3 text-brand-500 font-medium">Invoice</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Customer</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Items</th>
+                    <th className="text-right py-3 text-brand-500 font-medium">Total</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Date</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Status</th>
+                    <th className="text-right py-3 text-brand-500 font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pmOrders.map((o) => {
+                    const statusColors: Record<string, string> = {
+                      processing: "bg-amber-100 text-amber-700",
+                      in_transit: "bg-blue-100 text-blue-700",
+                      delivered: "bg-green-100 text-green-700",
+                      cancelled: "bg-red-100 text-red-700",
+                      refunded: "bg-brand-100 text-brand-500",
+                    };
+                    const nextStatus = o.status === "processing" ? "in_transit" : o.status === "in_transit" ? "delivered" : null;
+                    const nextLabel = o.status === "processing" ? "Mark In Transit" : o.status === "in_transit" ? "Mark Delivered" : null;
+                    return (
+                      <tr key={o.id} className="border-b border-brand-100 hover:bg-brand-50 transition-colors">
+                        <td className="py-3 font-mono text-xs text-brand-500 whitespace-nowrap">
+                          {o.invoiceNo || `#${o.id}`}
+                        </td>
+                        <td className="py-3 text-brand-700 whitespace-nowrap">
+                          <div className="font-medium text-brand-900">{o.user?.name ?? "—"}</div>
+                          <div className="text-xs text-brand-400">{o.user?.email ?? ""}</div>
+                        </td>
+                        <td className="py-3 text-brand-600 max-w-xs">
+                          <p className="line-clamp-2 text-xs">
+                            {o.items.map((i: any) => `${i.productName} ×${i.quantity}`).join(", ")}
+                          </p>
+                        </td>
+                        <td className="py-3 text-right text-brand-900 whitespace-nowrap font-medium">
+                          ${Number(o.totalAmount).toFixed(2)}
+                        </td>
+                        <td className="py-3 text-brand-400 text-xs whitespace-nowrap">
+                          {new Date(o.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-3">
+                          <span className={`text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 ${statusColors[o.status] ?? "bg-brand-100 text-brand-500"}`}>
+                            {o.status.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right whitespace-nowrap">
+                          {nextStatus && nextLabel ? (
+                            <button
+                              onClick={() => handleUpdateOrderStatus(o.id, nextStatus as "in_transit" | "delivered")}
+                              disabled={pmStatusUpdating === o.id}
+                              className="text-xs font-medium px-3 py-1 bg-brand-900 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+                            >
+                              {pmStatusUpdating === o.id ? "Saving..." : nextLabel}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-brand-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       {/* Comments */}
