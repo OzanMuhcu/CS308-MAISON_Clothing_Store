@@ -3,6 +3,8 @@ import api from "../services/api";
 
 type Tab = "products" | "categories" | "orders" | "comments";
 
+type CommentStatus = "pending" | "approved" | "rejected";
+
 interface Product {
   id: number;
   name: string;
@@ -10,6 +12,15 @@ interface Product {
   price: number;
   stockQty: number;
   category: string;
+}
+
+interface AdminComment {
+  id: number;
+  text: string;
+  status: CommentStatus;
+  createdAt: string;
+  user: { id: number; name: string; email: string };
+  product: { id: number; name: string };
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -24,6 +35,10 @@ export default function ProductManagerAdmin() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [comments, setComments] = useState<AdminComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+
   useEffect(() => {
     if (tab === "products" || tab === "categories") {
       setLoading(true);
@@ -33,6 +48,21 @@ export default function ProductManagerAdmin() {
         .catch(console.error)
         .finally(() => setLoading(false));
     }
+  }, [tab]);
+
+  // Story 44: fetch the full moderation queue when the Comments tab opens.
+  useEffect(() => {
+    if (tab !== "comments") return;
+    setCommentsLoading(true);
+    setCommentsError(null);
+    api
+      .get<AdminComment[]>("/reviews/admin/comments")
+      .then(({ data }) => setComments(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        setComments([]);
+        setCommentsError(err?.response?.data?.error || "Failed to load comments.");
+      })
+      .finally(() => setCommentsLoading(false));
   }, [tab]);
 
   const categories = Array.from(new Set(products.map((p) => p.category))).sort();
