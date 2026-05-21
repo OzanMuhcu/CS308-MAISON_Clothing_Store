@@ -273,6 +273,28 @@ export async function reviewRefundRequest(refundId: number, status: "approved" |
   });
 }
 
+const PM_STATUS_TRANSITIONS: Record<string, string> = {
+  processing: "in_transit",
+  in_transit: "delivered",
+};
+
+export async function updateOrderStatusByManager(orderId: number, status: string) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new AppError(404, "Order not found");
+
+  const allowed = PM_STATUS_TRANSITIONS[order.status];
+  if (allowed !== status) {
+    throw new AppError(400, `Cannot transition from '${order.status}' to '${status}'`);
+  }
+
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: { status: status as any },
+    include: { items: true, user: { select: { id: true, name: true, email: true } } },
+  });
+  return formatOrder(updated);
+}
+
 function formatOrder(order: any) {
   return {
     id: order.id,
