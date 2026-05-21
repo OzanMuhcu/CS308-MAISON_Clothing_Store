@@ -24,16 +24,65 @@ function formatProduct(p: any) {
     distributorInfo: p.distributorInfo,
     avgRating: p.avgRating,
     ratingCount: p.ratingCount,
+    isActive: p.isActive,
   };
 }
 
+
+export async function createProduct(data: {
+  name: string;
+  description?: string;
+  price?: number;
+  stockQty?: number;
+  sku: string;
+  imageUrl?: string;
+  category?: string;
+  model?: string;
+  serialNumber: string;
+  warrantyStatus?: string;
+  distributorInfo?: string;
+}) {
+  const [existingSku, existingSerial] = await Promise.all([
+    prisma.product.findUnique({ where: { sku: data.sku } }),
+    prisma.product.findUnique({ where: { serialNumber: data.serialNumber } }),
+  ]);
+  if (existingSku) throw new AppError(409, "SKU already exists");
+  if (existingSerial) throw new AppError(409, "Serial number already exists");
+
+  const product = await prisma.product.create({
+    data: {
+      name: data.name,
+      description: data.description ?? "",
+      price: data.price ?? 0,
+      stockQty: data.stockQty ?? 0,
+      sku: data.sku,
+      imageUrl: data.imageUrl ?? "",
+      category: data.category ?? "",
+      model: data.model ?? "",
+      serialNumber: data.serialNumber,
+      warrantyStatus: data.warrantyStatus ?? "None",
+      distributorInfo: data.distributorInfo ?? "",
+    },
+  });
+  return formatProduct(product);
+}
 
 export async function listProducts(query: {
   search?: string;
   category?: string;
   sort?: string;
+  includeUnpriced?: boolean;
+  includeInactive?: boolean;
 }) {
   const where: any = {};
+
+  if (!query.includeUnpriced) {
+    where.price = { gt: 0 };
+  }
+
+  if (!query.includeInactive) {
+    where.isActive = true;
+  }
 
   if (query.search) {
     where.OR = [
@@ -61,6 +110,38 @@ export async function listProducts(query: {
   return products.map(formatProduct);
 }
 
+export async function updateProductByManager(
+  id: number,
+  data: {
+    name?: string;
+    description?: string;
+    stockQty?: number;
+    imageUrl?: string;
+    category?: string;
+    model?: string;
+    warrantyStatus?: string;
+    distributorInfo?: string;
+    isActive?: boolean;
+  }
+) {
+  const product = await prisma.product.findUnique({ where: { id } });
+  if (!product) throw new AppError(404, "Product not found");
+
+  const updateData: Record<string, any> = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.stockQty !== undefined) updateData.stockQty = data.stockQty;
+  if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
+  if (data.category !== undefined) updateData.category = data.category;
+  if (data.model !== undefined) updateData.model = data.model;
+  if (data.warrantyStatus !== undefined) updateData.warrantyStatus = data.warrantyStatus;
+  if (data.distributorInfo !== undefined) updateData.distributorInfo = data.distributorInfo;
+  if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+  const updated = await prisma.product.update({ where: { id }, data: updateData });
+  return formatProduct(updated);
+}
+
 export async function getProduct(id: number) {
   const product = await prisma.product.findUnique({ where: { id } });
   if (!product) throw new AppError(404, "Product not found");
@@ -70,6 +151,7 @@ export async function getProduct(id: number) {
 
 export async function getCategories() {
   const products = await prisma.product.findMany({
+    where: { price: { gt: 0 }, isActive: true },
     select: { category: true },
     distinct: ["category"],
     orderBy: { category: "asc" },

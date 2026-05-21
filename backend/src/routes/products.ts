@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { listProducts, getProduct, getCategories, updateProduct } from "../services/productService";
+import { listProducts, getProduct, getCategories, updateProduct, createProduct, updateProductByManager } from "../services/productService";
 import { authenticate, authorize } from "../middleware/auth";
 
 const router = Router();
@@ -29,6 +29,88 @@ router.get("/categories", async (_req: Request, res: Response, next: NextFunctio
     next(err);
   }
 });
+
+const createSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  description: z.string().trim().max(5000).optional(),
+  price: z.number().nonnegative().optional(),
+  stockQty: z.number().int().nonnegative().optional(),
+  sku: z.string().trim().min(1, "SKU is required").max(50),
+  imageUrl: z.string().trim().max(500).optional(),
+  category: z.string().trim().max(100).optional(),
+  model: z.string().trim().max(100).optional(),
+  serialNumber: z.string().trim().min(1, "Serial number is required").max(100),
+  warrantyStatus: z.string().trim().max(50).optional(),
+  distributorInfo: z.string().trim().max(200).optional(),
+});
+
+// POST /api/products (product manager only)
+router.post(
+  "/",
+  authenticate,
+  authorize("product_manager"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = createSchema.parse(req.body);
+      const product = await createProduct(data);
+      res.status(201).json({ product });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// GET /api/products/manager (product manager only — includes unpriced products)
+router.get(
+  "/manager",
+  authenticate,
+  authorize("product_manager"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { search, category, sort } = req.query;
+      const products = await listProducts({
+        search: search as string | undefined,
+        category: category as string | undefined,
+        sort: sort as string | undefined,
+        includeUnpriced: true,
+        includeInactive: true,
+      });
+      res.json(products);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+const managerUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().trim().max(5000).optional(),
+  stockQty: z.number().int().nonnegative().optional(),
+  imageUrl: z.string().trim().max(500).optional(),
+  category: z.string().trim().max(100).optional(),
+  model: z.string().trim().max(100).optional(),
+  warrantyStatus: z.string().trim().max(50).optional(),
+  distributorInfo: z.string().trim().max(200).optional(),
+  isActive: z.boolean().optional(),
+});
+
+// PATCH /api/products/manager/:id (product manager only — non-price fields + stock)
+router.patch(
+  "/manager/:id",
+  authenticate,
+  authorize("product_manager"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      if (isNaN(id)) { res.status(400).json({ error: "Invalid product ID" }); return; }
+      const data = managerUpdateSchema.parse(req.body);
+      const updated = await updateProductByManager(id, data);
+      res.json({ product: updated });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // GET /api/products/:id
 router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
