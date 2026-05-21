@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 
 type Tab = "products" | "categories" | "orders" | "comments";
@@ -22,6 +23,14 @@ interface AdminComment {
   user: { id: number; name: string; email: string };
   product: { id: number; name: string };
 }
+
+// Story 44 acceptance: approved / rejected / pending must be visually
+// distinguishable in the admin UI. Each status gets its own colour family.
+const COMMENT_BADGE: Record<CommentStatus, string> = {
+  pending: "bg-amber-100 text-amber-800 border border-amber-200",
+  approved: "bg-green-100 text-green-800 border border-green-200",
+  rejected: "bg-red-100 text-red-800 border border-red-200",
+};
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "products", label: "Products" },
@@ -183,13 +192,65 @@ export default function ProductManagerAdmin() {
         </div>
       )}
 
-      {/* Comments — stub for future sprint */}
+      {/* Comments — Story 44 moderation queue */}
       {tab === "comments" && (
-        <div className="py-20 text-center">
-          <p className="text-brand-400 text-sm">
-            Comment moderation will be available in a future update.
-          </p>
-        </div>
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-brand-900">Comment Moderation</h2>
+            <span className="text-xs tracking-[0.15em] uppercase text-brand-500 font-medium">
+              {comments.length} total
+            </span>
+          </div>
+
+          {commentsError && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+              {commentsError}
+            </div>
+          )}
+
+          {commentsLoading ? (
+            <div className="flex justify-center py-20">
+              <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="border border-brand-200 p-10 text-center">
+              <p className="text-brand-500 text-sm">No comments yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {comments.map((c) => (
+                <article key={c.id} className="border border-brand-200 bg-white p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
+                      <Link
+                        to={`/products/${c.product.id}`}
+                        className="font-display text-lg text-brand-900 hover:underline underline-offset-2"
+                      >
+                        {c.product.name}
+                      </Link>
+                      <p className="text-xs text-brand-500 mt-1">
+                        <span className="font-medium text-brand-700">{c.user.name}</span>
+                        <span className="mx-1.5 text-brand-300">·</span>
+                        <span>{c.user.email}</span>
+                        <span className="mx-1.5 text-brand-300">·</span>
+                        <span>{new Date(c.createdAt).toLocaleString()}</span>
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full ${COMMENT_BADGE[c.status]}`}
+                    >
+                      {c.status}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-brand-800 leading-relaxed whitespace-pre-wrap">
+                    {c.text}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
