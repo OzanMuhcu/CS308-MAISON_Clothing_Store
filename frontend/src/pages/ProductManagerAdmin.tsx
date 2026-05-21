@@ -57,6 +57,33 @@ export default function ProductManagerAdmin() {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState<string | null>(null);
   const [commentFilter, setCommentFilter] = useState<CommentFilter>("all");
+  const [moderatingId, setModeratingId] = useState<number | null>(null);
+  const [moderationFlash, setModerationFlash] = useState<{
+    kind: "approved" | "rejected";
+    text: string;
+  } | null>(null);
+
+  const moderateComment = async (id: number, nextStatus: "approved" | "rejected") => {
+    setModeratingId(id);
+    setCommentsError(null);
+    try {
+      await api.patch(`/reviews/comment/${id}/status`, { status: nextStatus });
+      // Patch the local list so the badge and filter counts update
+      // without a round-trip refetch.
+      setComments((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, status: nextStatus } : c))
+      );
+      setModerationFlash({
+        kind: nextStatus,
+        text: nextStatus === "approved" ? "Comment approved." : "Comment rejected.",
+      });
+      setTimeout(() => setModerationFlash(null), 2500);
+    } catch (err: any) {
+      setCommentsError(err?.response?.data?.error || "Failed to update comment.");
+    } finally {
+      setModeratingId(null);
+    }
+  };
 
   // Apply the active filter in memory so switching tabs is instant
   // and the underlying fetch only fires once per tab open.
@@ -244,6 +271,18 @@ export default function ProductManagerAdmin() {
             </div>
           )}
 
+          {moderationFlash && (
+            <div
+              className={`mb-6 px-4 py-3 text-sm border ${
+                moderationFlash.kind === "approved"
+                  ? "bg-green-50 border-green-200 text-green-700"
+                  : "bg-amber-50 border-amber-200 text-amber-800"
+              }`}
+            >
+              {moderationFlash.text}
+            </div>
+          )}
+
           {commentsLoading ? (
             <div className="flex justify-center py-20">
               <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
@@ -258,36 +297,65 @@ export default function ProductManagerAdmin() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredComments.map((c) => (
-                <article key={c.id} className="border border-brand-200 bg-white p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-                    <div>
-                      <Link
-                        to={`/products/${c.product.id}`}
-                        className="font-display text-lg text-brand-900 hover:underline underline-offset-2"
+              {filteredComments.map((c) => {
+                const isBusy = moderatingId === c.id;
+                return (
+                  <article
+                    key={c.id}
+                    className={`border border-brand-200 bg-white p-5 transition-opacity ${
+                      isBusy ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                      <div>
+                        <Link
+                          to={`/products/${c.product.id}`}
+                          className="font-display text-lg text-brand-900 hover:underline underline-offset-2"
+                        >
+                          {c.product.name}
+                        </Link>
+                        <p className="text-xs text-brand-500 mt-1">
+                          <span className="font-medium text-brand-700">{c.user.name}</span>
+                          <span className="mx-1.5 text-brand-300">·</span>
+                          <span>{c.user.email}</span>
+                          <span className="mx-1.5 text-brand-300">·</span>
+                          <span>{new Date(c.createdAt).toLocaleString()}</span>
+                        </p>
+                      </div>
+                      <span
+                        className={`text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full ${COMMENT_BADGE[c.status]}`}
                       >
-                        {c.product.name}
-                      </Link>
-                      <p className="text-xs text-brand-500 mt-1">
-                        <span className="font-medium text-brand-700">{c.user.name}</span>
-                        <span className="mx-1.5 text-brand-300">·</span>
-                        <span>{c.user.email}</span>
-                        <span className="mx-1.5 text-brand-300">·</span>
-                        <span>{new Date(c.createdAt).toLocaleString()}</span>
-                      </p>
+                        {c.status}
+                      </span>
                     </div>
-                    <span
-                      className={`text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full ${COMMENT_BADGE[c.status]}`}
-                    >
-                      {c.status}
-                    </span>
-                  </div>
 
-                  <p className="text-sm text-brand-800 leading-relaxed whitespace-pre-wrap">
-                    {c.text}
-                  </p>
-                </article>
-              ))}
+                    <p className="text-sm text-brand-800 leading-relaxed whitespace-pre-wrap">
+                      {c.text}
+                    </p>
+
+                    {c.status === "pending" && (
+                      <div className="flex items-center gap-3 mt-4 pt-4 border-t border-brand-100">
+                        <button
+                          type="button"
+                          onClick={() => moderateComment(c.id, "approved")}
+                          disabled={isBusy}
+                          className="px-4 py-2 text-xs tracking-widest uppercase font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 transition-colors"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moderateComment(c.id, "rejected")}
+                          disabled={isBusy}
+                          className="px-4 py-2 text-xs tracking-widest uppercase font-medium border border-red-600 text-red-700 hover:bg-red-50 disabled:opacity-60 transition-colors"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
             </div>
           )}
         </>
