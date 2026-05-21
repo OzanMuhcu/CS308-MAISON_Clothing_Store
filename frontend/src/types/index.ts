@@ -114,6 +114,14 @@ export interface RefundRequestAdmin extends RefundRequest {
   order: Order;
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  hidden: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Wishlist
 export interface WishlistItem {
   id: number;
