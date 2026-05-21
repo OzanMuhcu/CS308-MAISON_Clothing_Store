@@ -99,6 +99,72 @@ export function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 }
 
 /**
+ * Send refund decision email (approved or rejected) to the customer.
+ * Non-blocking: caller should fire-and-forget with .catch().
+ */
+export async function sendRefundDecisionEmail(data: {
+  customerName: string;
+  customerEmail: string;
+  invoiceNo: string;
+  status: "approved" | "rejected";
+  refundAmount: number;
+  items: { productName: string; quantity: number; unitPrice: number; lineTotal: number }[];
+}): Promise<void> {
+  const usingRealSmtp = Boolean(env.smtp.host && env.smtp.user);
+  const decision = data.status === "approved" ? "Approved" : "Rejected";
+  const subject = `MAISON — Refund Request ${decision} (${data.invoiceNo})`;
+
+  let transporter: nodemailer.Transporter;
+  let fromEmail: string;
+
+  if (usingRealSmtp) {
+    transporter = nodemailer.createTransport({
+      host: env.smtp.host,
+      port: env.smtp.port,
+      secure: env.smtp.port === 465,
+      auth: { user: env.smtp.user, pass: env.smtp.pass },
+    });
+    fromEmail = env.smtp.from;
+  } else {
+    const testAccount = await nodemailer.createTestAccount();
+    transporter = nodemailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      secure: false,
+      auth: { user: testAccount.user, pass: testAccount.pass },
+    });
+    fromEmail = testAccount.user;
+  }
+
+  const itemLines = data.items
+    .map((i) => `  • ${i.productName} x${i.quantity} — $${i.lineTotal.toFixed(2)}`)
+    .join("\n");
+
+  const itemHtml = data.items
+    .map((i) => `<tr><td>${i.productName}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">$${i.lineTotal.toFixed(2)}</td></tr>`)
+    .join("");
+
+  const text =
+    data.status === "approved"
+      ? `Dear ${data.customerName},\n\nYour refund request for order ${data.invoiceNo} has been approved.\n\nRefund amount: $${data.refundAmount.toFixed(2)}\n\nItems:\n${itemLines}\n\nThe refund will be processed shortly.\n\nMAISON`
+      : `Dear ${data.customerName},\n\nWe're sorry to inform you that your refund request for order ${data.invoiceNo} has been rejected.\n\nIf you have questions, please contact our support team.\n\nMAISON`;
+
+  const html =
+    data.status === "approved"
+      ? `<p>Dear ${data.customerName},</p><p>Your refund request for order <strong>${data.invoiceNo}</strong> has been <strong style="color:green">approved</strong>.</p><p><strong>Refund amount: $${data.refundAmount.toFixed(2)}</strong></p><table border="0" cellpadding="4"><thead><tr><th align="left">Product</th><th>Qty</th><th>Total</th></tr></thead><tbody>${itemHtml}</tbody></table><p>The refund will be processed shortly.</p><p>MAISON</p>`
+      : `<p>Dear ${data.customerName},</p><p>We're sorry to inform you that your refund request for order <strong>${data.invoiceNo}</strong> has been <strong style="color:red">rejected</strong>.</p><p>If you have questions, please contact our support team.</p><p>MAISON</p>`;
+
+  const info = await transporter.sendMail({ from: fromEmail, to: data.customerEmail, subject, text, html });
+
+  if (!usingRealSmtp) {
+    const previewUrl = nodemailer.getTestMessageUrl(info) as string;
+    console.log(`[Email] Refund decision (${decision}) preview: ${previewUrl}`);
+  } else {
+    console.log(`[Email] Refund decision (${decision}) sent to ${data.customerEmail}`);
+  }
+}
+
+/**
  * Send invoice email with PDF attachment.
  * Uses Ethereal test account if SMTP env vars are not set (preview URL logged).
  * Failures are caught and logged — they do NOT block order creation.
