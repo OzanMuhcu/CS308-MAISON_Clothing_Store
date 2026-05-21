@@ -100,6 +100,7 @@ model Product {
   distributorInfo  String    @default("") @map("distributor_info")
   avgRating        Float     @default(0) @map("avg_rating")
   ratingCount      Int       @default(0) @map("rating_count")
+  isActive         Boolean   @default(true) @map("is_active")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   cartItems     CartItem[]
