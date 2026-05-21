@@ -12,6 +12,33 @@ interface Product {
   category: string;
 }
 
+interface AdminOrderItem {
+  id: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+interface AdminOrder {
+  id: number;
+  totalAmount: number;
+  status: string;
+  invoiceNo: string | null;
+  createdAt: string;
+  user?: { id: number; name: string; email: string };
+  items: AdminOrderItem[];
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  processing: "bg-amber-100 text-amber-800",
+  in_transit: "bg-blue-100 text-blue-800",
+  delivered: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
+  refunded: "bg-zinc-200 text-zinc-700",
+};
+
 const TABS: { key: Tab; label: string }[] = [
   { key: "products", label: "Products" },
   { key: "categories", label: "Categories" },
@@ -24,6 +51,10 @@ export default function ProductManagerAdmin() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+
   useEffect(() => {
     if (tab === "products" || tab === "categories") {
       setLoading(true);
@@ -33,6 +64,20 @@ export default function ProductManagerAdmin() {
         .catch(console.error)
         .finally(() => setLoading(false));
     }
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "orders") return;
+    setOrdersLoading(true);
+    setOrdersError(null);
+    api
+      .get<AdminOrder[]>("/orders/admin")
+      .then(({ data }) => setOrders(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        setOrders([]);
+        setOrdersError(err?.response?.data?.error || "Failed to load orders.");
+      })
+      .finally(() => setOrdersLoading(false));
   }, [tab]);
 
   const categories = Array.from(new Set(products.map((p) => p.category))).sort();
@@ -144,13 +189,92 @@ export default function ProductManagerAdmin() {
         </>
       )}
 
-      {/* Orders — stub for future sprint */}
+      {/* Orders — Story 42 */}
       {tab === "orders" && (
-        <div className="py-20 text-center">
-          <p className="text-brand-400 text-sm">
-            Order management for product managers will be available in a future update.
-          </p>
-        </div>
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-brand-900">All Orders</h2>
+            <span className="text-xs tracking-[0.15em] uppercase text-brand-500 font-medium">
+              {orders.length} total
+            </span>
+          </div>
+
+          {ordersError && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+              {ordersError}
+            </div>
+          )}
+
+          {ordersLoading ? (
+            <div className="flex justify-center py-20">
+              <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : orders.length === 0 ? (
+            <p className="text-center text-brand-400 py-12 text-sm">No orders yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-brand-200">
+                    <th className="text-left py-3 text-brand-500 font-medium">Order #</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Date</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Customer</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Status</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Products</th>
+                    <th className="text-right py-3 text-brand-500 font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((o) => (
+                    <tr
+                      key={o.id}
+                      className="border-b border-brand-100 hover:bg-brand-50 transition-colors align-top"
+                    >
+                      <td className="py-3 font-mono text-xs text-brand-700">
+                        {o.invoiceNo || `#${o.id}`}
+                      </td>
+                      <td className="py-3 text-brand-700 whitespace-nowrap">
+                        {new Date(o.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 text-brand-700">
+                        {o.user ? (
+                          <div>
+                            <div className="font-medium text-brand-900">{o.user.name}</div>
+                            <div className="text-xs text-brand-500">{o.user.email}</div>
+                          </div>
+                        ) : (
+                          <span className="text-brand-400">(unknown)</span>
+                        )}
+                      </td>
+                      <td className="py-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 text-[10px] uppercase tracking-wider font-medium rounded-full ${
+                            STATUS_BADGE[o.status] || "bg-brand-100 text-brand-700"
+                          }`}
+                        >
+                          {o.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-brand-700 max-w-md">
+                        <ul className="space-y-0.5">
+                          {o.items.map((it) => (
+                            <li key={it.id} className="text-xs">
+                              <span className="text-brand-900">{it.productName}</span>
+                              <span className="text-brand-400"> × {it.quantity}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="py-3 text-right font-medium text-brand-900 whitespace-nowrap">
+                        ${o.totalAmount.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       {/* Comments — stub for future sprint */}
