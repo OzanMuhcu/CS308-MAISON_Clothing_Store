@@ -192,7 +192,9 @@ export default function Admin() {
     }
   };
 
-  const revenueByDate = orders.reduce<Record<string, number>>((acc, order) => {
+  const revenueByDate = orders
+    .filter((order) => order.status !== "cancelled" && order.status !== "refunded")
+    .reduce<Record<string, number>>((acc, order) => {
     const key = new Date(order.createdAt).toISOString().slice(0, 10);
     acc[key] = (acc[key] || 0) + order.totalAmount;
     return acc;

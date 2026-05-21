@@ -1,6 +1,7 @@
 import prisma from "../config/db";
 import { AppError } from "../middleware/errorHandler";
 import { getEffectivePrice } from "./discountUtils";
+import { sendRefundDecisionEmail } from "./invoiceService";
 
 interface AddressSnapshot {
   fullName: string;
@@ -241,7 +242,7 @@ export async function requestRefund(userId: number, orderId: number) {
 }
 
 export async function reviewRefundRequest(refundId: number, status: "approved" | "rejected") {
-  return prisma.$transaction(async (tx: any) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     const request = await tx.refundRequest.findUnique({
       where: { id: refundId },
       include: { order: { include: { items: true } }, user: { select: { id: true, name: true, email: true } } },
@@ -269,8 +270,29 @@ export async function reviewRefundRequest(refundId: number, status: "approved" |
       status: updated.status,
       createdAt: updated.createdAt,
       resolvedAt: updated.resolvedAt,
+      refundAmount: Number(request.order.totalAmount),
+      _emailData: {
+        customerName: request.user.name,
+        customerEmail: request.user.email,
+        invoiceNo: request.order.invoiceNo || `ORD-${request.order.id}`,
+        refundAmount: Number(request.order.totalAmount),
+        items: request.order.items.map((i: any) => ({
+          productName: i.productName,
+          quantity: i.quantity,
+          unitPrice: Number(i.unitPrice),
+          lineTotal: Number(i.lineTotal),
+        })),
+      },
     };
   });
+
+  // Send decision email non-blocking — email failure must not affect the response
+  const { _emailData, ...response } = result;
+  sendRefundDecisionEmail({ ..._emailData, status }).catch((err) =>
+    console.error("[Refund] Decision email failed:", err)
+  );
+
+  return response;
 }
 
 const PM_STATUS_TRANSITIONS: Record<string, string> = {
