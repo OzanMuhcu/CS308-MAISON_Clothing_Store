@@ -54,6 +54,29 @@ export default function ProductManagerAdmin() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [invoiceBusyId, setInvoiceBusyId] = useState<number | null>(null);
+
+  const handleDownloadInvoice = async (order: AdminOrder) => {
+    setInvoiceBusyId(order.id);
+    setOrdersError(null);
+    try {
+      const response = await api.get(`/orders/admin/${order.id}/invoice`, {
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${order.invoiceNo || `order-${order.id}`}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setOrdersError(err?.response?.data?.error || "Failed to download invoice.");
+    } finally {
+      setInvoiceBusyId(null);
+    }
+  };
 
   useEffect(() => {
     if (tab === "products" || tab === "categories") {
@@ -222,6 +245,7 @@ export default function ProductManagerAdmin() {
                     <th className="text-left py-3 text-brand-500 font-medium">Status</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Products</th>
                     <th className="text-right py-3 text-brand-500 font-medium">Total</th>
+                    <th className="text-right py-3 text-brand-500 font-medium">Invoice</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -267,6 +291,16 @@ export default function ProductManagerAdmin() {
                       </td>
                       <td className="py-3 text-right font-medium text-brand-900 whitespace-nowrap">
                         ${o.totalAmount.toFixed(2)}
+                      </td>
+                      <td className="py-3 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadInvoice(o)}
+                          disabled={invoiceBusyId === o.id}
+                          className="text-xs tracking-widest uppercase font-medium text-brand-700 hover:text-brand-900 disabled:opacity-50 transition-colors"
+                        >
+                          {invoiceBusyId === o.id ? "Downloading..." : "Download"}
+                        </button>
                       </td>
                     </tr>
                   ))}
