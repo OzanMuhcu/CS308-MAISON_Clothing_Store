@@ -124,8 +124,10 @@ router.post("/:id/refund-request", async (req: Request, res: Response, next: Nex
   }
 });
 
-// GET /api/orders/admin — list all orders (sales manager only)
-router.get("/admin", authorize("sales_manager"), async (req: Request, res: Response, next: NextFunction) => {
+// GET /api/orders/admin — list all orders (sales manager and product manager)
+// Story 42: product_manager also needs read access to all historical orders
+// (customer info, order id, items) for the PM admin Orders tab.
+router.get("/admin", authorize("sales_manager", "product_manager"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
     let rangeStart: Date | undefined;
@@ -184,8 +186,9 @@ router.patch("/admin/refunds/:id", authorize("sales_manager"), async (req: Reque
   }
 });
 
-// GET /api/orders/admin/:id/invoice — admin invoice download
-router.get("/admin/:id/invoice", authorize("sales_manager"), async (req: Request, res: Response, next: NextFunction) => {
+// GET /api/orders/admin/:id/invoice — admin invoice download (sales + product manager)
+// Story 42: PM needs invoice access from the Orders tab.
+router.get("/admin/:id/invoice", authorize("sales_manager", "product_manager"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const orderId = parseInt(req.params.id as string, 10);
     if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order ID" }); return; }
