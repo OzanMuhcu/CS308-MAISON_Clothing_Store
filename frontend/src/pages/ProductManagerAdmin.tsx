@@ -32,6 +32,15 @@ const COMMENT_BADGE: Record<CommentStatus, string> = {
   rejected: "bg-red-100 text-red-800 border border-red-200",
 };
 
+type CommentFilter = "all" | CommentStatus;
+
+const COMMENT_FILTERS: { key: CommentFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected" },
+];
+
 const TABS: { key: Tab; label: string }[] = [
   { key: "products", label: "Products" },
   { key: "categories", label: "Categories" },
@@ -47,6 +56,20 @@ export default function ProductManagerAdmin() {
   const [comments, setComments] = useState<AdminComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [commentFilter, setCommentFilter] = useState<CommentFilter>("all");
+
+  // Apply the active filter in memory so switching tabs is instant
+  // and the underlying fetch only fires once per tab open.
+  const filteredComments =
+    commentFilter === "all"
+      ? comments
+      : comments.filter((c) => c.status === commentFilter);
+  const counts = {
+    all: comments.length,
+    pending: comments.filter((c) => c.status === "pending").length,
+    approved: comments.filter((c) => c.status === "approved").length,
+    rejected: comments.filter((c) => c.status === "rejected").length,
+  };
 
   useEffect(() => {
     if (tab === "products" || tab === "categories") {
@@ -195,11 +218,24 @@ export default function ProductManagerAdmin() {
       {/* Comments — Story 44 moderation queue */}
       {tab === "comments" && (
         <>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <h2 className="text-xl font-semibold text-brand-900">Comment Moderation</h2>
-            <span className="text-xs tracking-[0.15em] uppercase text-brand-500 font-medium">
-              {comments.length} total
-            </span>
+            <div className="flex flex-wrap gap-2">
+              {COMMENT_FILTERS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setCommentFilter(key)}
+                  className={`px-3 py-1 text-xs tracking-widest uppercase font-medium transition-colors border ${
+                    commentFilter === key
+                      ? "bg-brand-900 text-brand-50 border-brand-900"
+                      : "bg-white text-brand-700 border-brand-200 hover:border-brand-400"
+                  }`}
+                >
+                  {label} ({counts[key]})
+                </button>
+              ))}
+            </div>
           </div>
 
           {commentsError && (
@@ -212,13 +248,17 @@ export default function ProductManagerAdmin() {
             <div className="flex justify-center py-20">
               <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : comments.length === 0 ? (
+          ) : filteredComments.length === 0 ? (
             <div className="border border-brand-200 p-10 text-center">
-              <p className="text-brand-500 text-sm">No comments yet.</p>
+              <p className="text-brand-500 text-sm">
+                {commentFilter === "all"
+                  ? "No comments yet."
+                  : `No ${commentFilter} comments.`}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {comments.map((c) => (
+              {filteredComments.map((c) => (
                 <article key={c.id} className="border border-brand-200 bg-white p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                     <div>
