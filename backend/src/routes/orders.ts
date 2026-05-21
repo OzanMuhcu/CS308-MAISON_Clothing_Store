@@ -12,6 +12,7 @@ import {
   listRefundRequestsForUser,
   listRefundRequestsForAdmin,
   reviewRefundRequest,
+  updateOrderStatusByManager,
 } from "../services/orderService";
 import { generateInvoicePdf, sendInvoiceEmail } from "../services/invoiceService";
 import prisma from "../config/db";
@@ -210,6 +211,43 @@ router.get("/admin/:id/invoice", authorize("sales_manager"), async (req: Request
     next(err);
   }
 });
+
+// GET /api/orders/manager — list all orders (product manager only)
+router.get(
+  "/manager",
+  authenticate,
+  authorize("product_manager"),
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const orders = await listAllOrders();
+      res.json(orders);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+const pmStatusSchema = z.object({
+  status: z.enum(["in_transit", "delivered"]),
+});
+
+// PATCH /api/orders/manager/:id/status — update order status (product manager only)
+router.patch(
+  "/manager/:id/status",
+  authenticate,
+  authorize("product_manager"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const orderId = parseInt(req.params.id as string, 10);
+      if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order ID" }); return; }
+      const { status } = pmStatusSchema.parse(req.body);
+      const updated = await updateOrderStatusByManager(orderId, status);
+      res.json({ order: updated });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // GET /api/orders/:id — order detail (Story 16)
 router.get("/:id", async (req: Request, res: Response, next: NextFunction) => {
