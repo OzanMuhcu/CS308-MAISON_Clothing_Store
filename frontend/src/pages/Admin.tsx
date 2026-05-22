@@ -39,7 +39,7 @@ export default function Admin() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/products")
+      .get("/products/admin")
       .then(({ data }) => {
         const loaded: Product[] = data || [];
         setProducts(loaded);

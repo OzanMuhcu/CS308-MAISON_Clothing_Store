@@ -32,16 +32,15 @@ router.get("/categories", async (_req: Request, res: Response, next: NextFunctio
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
-  description: z.string().trim().max(5000).optional(),
-  price: z.number().nonnegative().optional(),
-  stockQty: z.number().int().nonnegative().optional(),
+  description: z.string().trim().max(5000).default(""),
+  stockQty: z.union([z.number(), z.string()]).pipe(z.coerce.number().int().nonnegative()).default(0),
   sku: z.string().trim().min(1, "SKU is required").max(50),
-  imageUrl: z.string().trim().max(500).optional(),
-  category: z.string().trim().max(100).optional(),
-  model: z.string().trim().max(100).optional(),
+  imageUrl: z.string().trim().max(2000).default(""),
+  category: z.string().trim().max(100).default(""),
+  model: z.string().trim().max(100).default(""),
   serialNumber: z.string().trim().min(1, "Serial number is required").max(100),
-  warrantyStatus: z.string().trim().max(50).optional(),
-  distributorInfo: z.string().trim().max(200).optional(),
+  warrantyStatus: z.string().trim().max(50).default("None"),
+  distributorInfo: z.string().trim().max(200).default(""),
 });
 
 // POST /api/products (product manager only)
@@ -86,13 +85,35 @@ const managerUpdateSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   description: z.string().trim().max(5000).optional(),
   stockQty: z.number().int().nonnegative().optional(),
-  imageUrl: z.string().trim().max(500).optional(),
+  imageUrl: z.string().trim().max(2000).optional(),
   category: z.string().trim().max(100).optional(),
   model: z.string().trim().max(100).optional(),
   warrantyStatus: z.string().trim().max(50).optional(),
   distributorInfo: z.string().trim().max(200).optional(),
   isActive: z.boolean().optional(),
 });
+
+// GET /api/products/admin (sales manager only — includes unpriced products)
+router.get(
+  "/admin",
+  authenticate,
+  authorize("sales_manager"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { search, category, sort } = req.query;
+      const products = await listProducts({
+        search: search as string | undefined,
+        category: category as string | undefined,
+        sort: sort as string | undefined,
+        includeUnpriced: true,
+        includeInactive: true,
+      });
+      res.json(products);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // PATCH /api/products/manager/:id (product manager only — non-price fields + stock)
 router.patch(
