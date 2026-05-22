@@ -134,7 +134,6 @@ export default function ProductManagerAdmin() {
       const { data } = await api.post("/products", {
         name: form.name.trim(),
         description: form.description.trim(),
-        price: 0,
         stockQty: parseInt(form.stockQty, 10) || 0,
         sku: form.sku.trim(),
         imageUrl: form.imageUrl.trim(),
@@ -148,7 +147,15 @@ export default function ProductManagerAdmin() {
       setShowForm(false);
       setForm(EMPTY_FORM);
     } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to create product.");
+      const errorMsg = err.response?.data?.error || "Failed to create product.";
+      const details = err.response?.data?.details;
+      if (details && Array.isArray(details)) {
+        const msg = details.map((d: any) => `${d.field}: ${d.message}`).join(", ");
+        setFormError(`${errorMsg}: ${msg}`);
+      } else {
+        setFormError(errorMsg);
+      }
+      console.error("Product creation error:", err.response?.data);
     } finally {
       setFormLoading(false);
     }
