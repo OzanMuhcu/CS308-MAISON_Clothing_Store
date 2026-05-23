@@ -10,6 +10,7 @@ import orderRoutes from "./routes/orders";
 import userRoutes from "./routes/users";
 import wishlistRoutes from "./routes/wishlist";
 import reviewRoutes from "./routes/reviews";
+import categoryRoutes from "./routes/categories";
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/wishlists", wishlistRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/categories", categoryRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
