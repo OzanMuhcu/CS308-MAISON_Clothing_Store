@@ -95,6 +95,26 @@ export async function listProducts(query: {
     where.category = query.category;
   }
 
+  // Story 41: PM-removed (hidden=true) categories should disappear from the
+  // storefront. Exclude any product whose category name matches a hidden
+  // category. Skipped for PM/admin views (includeInactive=true) so they can
+  // still see everything they manage.
+  if (!query.includeInactive) {
+    const hidden = await prisma.category.findMany({
+      where: { hidden: true },
+      select: { name: true },
+    });
+    if (hidden.length > 0) {
+      where.category = where.category
+        ? { equals: where.category }
+        : { notIn: hidden.map((h) => h.name) };
+      // If the caller asked for a specific hidden category, no products.
+      if (where.category.equals && hidden.some((h) => h.name === where.category.equals)) {
+        return [];
+      }
+    }
+  }
+
   let orderBy: any = { createdAt: "desc" };
   if (query.sort === "price_asc") orderBy = { price: "asc" };
   else if (query.sort === "price_desc") orderBy = { price: "desc" };
@@ -150,13 +170,25 @@ export async function getProduct(id: number) {
 }
 
 export async function getCategories() {
-  const products = await prisma.product.findMany({
-    where: { price: { gt: 0 }, isActive: true },
-    select: { category: true },
-    distinct: ["category"],
-    orderBy: { category: "asc" },
-  });
-  return products.map((p: any) => p.category).filter(Boolean);
+  // Story 41: hide PM-removed (hidden=true) categories from the storefront
+  // dropdown too — otherwise the user could select a category that returns
+  // nothing on the product grid.
+  const [products, hidden] = await Promise.all([
+    prisma.product.findMany({
+      where: { price: { gt: 0 }, isActive: true },
+      select: { category: true },
+      distinct: ["category"],
+      orderBy: { category: "asc" },
+    }),
+    prisma.category.findMany({
+      where: { hidden: true },
+      select: { name: true },
+    }),
+  ]);
+  const hiddenSet = new Set(hidden.map((h) => h.name));
+  return products
+    .map((p: any) => p.category)
+    .filter((c: string) => c && !hiddenSet.has(c));
 }
 
 export async function updateProduct(
