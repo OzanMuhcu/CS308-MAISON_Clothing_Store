@@ -41,6 +41,27 @@ interface PendingComment {
   product: { id: number; name: string };
 }
 
+// Story 42 sub-task: delivery address shape persisted on each order at checkout.
+interface OrderAddress {
+  fullName: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  postalCode: string;
+  country: string;
+}
+
+interface PmOrder {
+  id: number;
+  invoiceNo: string | null;
+  totalAmount: number;
+  status: string;
+  createdAt: string;
+  user?: { id: number; name: string; email: string };
+  items: { id: number; productName: string; quantity: number }[];
+  address?: OrderAddress | null;
+}
+
 const TABS: { key: Tab; label: string }[] = [
   { key: "products", label: "Products" },
   { key: "categories", label: "Categories" },
