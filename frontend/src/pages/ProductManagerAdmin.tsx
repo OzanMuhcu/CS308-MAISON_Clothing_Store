@@ -726,6 +726,22 @@ export default function ProductManagerAdmin() {
                           <div className="font-medium text-brand-900">{o.user?.name ?? "—"}</div>
                           <div className="text-xs text-brand-400">{o.user?.email ?? ""}</div>
                         </td>
+                        <td className="py-3 text-brand-600 max-w-[14rem]">
+                          {(() => {
+                            const lines = formatAddressLines(o.address as OrderAddress | null | undefined);
+                            if (!lines) {
+                              return <span className="text-xs text-brand-300">No address on file</span>;
+                            }
+                            return (
+                              <div className="text-xs leading-snug">
+                                <div className="text-brand-900 font-medium">{lines.primary}</div>
+                                {lines.secondary && (
+                                  <div className="text-brand-500">{lines.secondary}</div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td className="py-3 text-brand-600 max-w-xs">
                           <p className="line-clamp-2 text-xs">
                             {o.items.map((i: any) => `${i.productName} ×${i.quantity}`).join(", ")}
