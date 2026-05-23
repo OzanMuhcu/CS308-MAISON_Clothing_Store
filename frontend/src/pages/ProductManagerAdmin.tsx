@@ -69,6 +69,23 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "comments", label: "Comments" },
 ];
 
+// Story 42 sub-task: format a delivery address for the PM orders table.
+// Returns an object with a primary line (recipient + city) and a secondary
+// line (street + postal code + country) so the table cell can render two
+// stacked lines for readability without crowding the layout.
+function formatAddressLines(address: OrderAddress | null | undefined): {
+  primary: string;
+  secondary: string;
+} | null {
+  if (!address) return null;
+  const street = [address.line1, address.line2].filter((s) => s && s.trim()).join(", ");
+  const cityLine = [address.city, address.postalCode].filter((s) => s && s.trim()).join(" ");
+  const primary = [address.fullName, cityLine].filter((s) => s && s.trim()).join(" — ");
+  const secondary = [street, address.country].filter((s) => s && s.trim()).join(", ");
+  if (!primary && !secondary) return null;
+  return { primary, secondary };
+}
+
 export default function ProductManagerAdmin() {
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState<Product[]>([]);
