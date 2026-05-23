@@ -698,6 +698,7 @@ export default function ProductManagerAdmin() {
                   <tr className="border-b border-brand-200">
                     <th className="text-left py-3 text-brand-500 font-medium">Invoice</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Customer</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Delivery Address</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Items</th>
                     <th className="text-right py-3 text-brand-500 font-medium">Total</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Date</th>
