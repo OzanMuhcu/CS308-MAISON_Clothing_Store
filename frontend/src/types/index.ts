@@ -101,6 +101,15 @@ export interface Order {
   user?: { id: number; name: string; email: string };
 }
 
+// Story 41: PM-managed category list.
+export interface Category {
+  id: number;
+  name: string;
+  hidden: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RefundRequest {
   id: number;
   orderId: number;

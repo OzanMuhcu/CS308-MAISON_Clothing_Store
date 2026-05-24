@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
+import type { Category } from "../types";
 
 type Tab = "products" | "categories" | "orders" | "comments";
 
@@ -62,6 +63,15 @@ export default function ProductManagerAdmin() {
   const [pmStatusUpdating, setPmStatusUpdating] = useState<number | null>(null);
   const [pmOrdersError, setPmOrdersError] = useState("");
 
+  // Story 41 — managed categories (separate from the distinct-from-products
+  // list used elsewhere on this page).
+  const [managedCategories, setManagedCategories] = useState<Category[]>([]);
+  const [managedCategoriesLoading, setManagedCategoriesLoading] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [categoryFormError, setCategoryFormError] = useState<string | null>(null);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
+
   // Product creation form
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -104,7 +114,60 @@ export default function ProductManagerAdmin() {
         .catch((err) => setPmOrdersError(err.response?.data?.error || "Failed to load orders."))
         .finally(() => setPmOrdersLoading(false));
     }
+    if (tab === "categories") {
+      setManagedCategoriesLoading(true);
+      api
+        .get("/categories")
+        .then(({ data }) => setManagedCategories(Array.isArray(data) ? data : []))
+        .catch(() => setManagedCategories([]))
+        .finally(() => setManagedCategoriesLoading(false));
+    }
   }, [tab]);
+
+  // Story 41 — PM creates a new category.
+  async function handleCreateCategory(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newCategoryName.trim();
+    if (!name) {
+      setCategoryFormError("Category name is required.");
+      return;
+    }
+    setCategoryFormError(null);
+    setCreatingCategory(true);
+    try {
+      const { data } = await api.post<Category>("/categories", { name });
+      setManagedCategories((prev) =>
+        [...prev.filter((c) => c.id !== data.id), data].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        )
+      );
+      setNewCategoryName("");
+    } catch (err: any) {
+      setCategoryFormError(err?.response?.data?.error || "Failed to create category.");
+    } finally {
+      setCreatingCategory(false);
+    }
+  }
+
+  // Story 41 — soft-remove a category (sets hidden=true on the backend).
+  async function handleDeleteCategory(cat: Category) {
+    const count = products.filter((p) => p.category === cat.name).length;
+    const productNote =
+      count > 0
+        ? `\n\n${count} product${count !== 1 ? "s" : ""} currently in this category will be hidden from the storefront.`
+        : "";
+    if (!window.confirm(`Remove "${cat.name}" from the storefront?${productNote}`)) return;
+    setDeletingCategoryId(cat.id);
+    setCategoryFormError(null);
+    try {
+      await api.delete(`/categories/${cat.id}`);
+      setManagedCategories((prev) => prev.filter((c) => c.id !== cat.id));
+    } catch (err: any) {
+      setCategoryFormError(err?.response?.data?.error || "Failed to remove category.");
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  }
 
   async function moderateComment(id: number, status: "approved" | "rejected") {
     setModerating(id);
@@ -604,30 +667,78 @@ export default function ProductManagerAdmin() {
         </>
       )}
 
-      {/* Categories */}
+      {/* Categories — Story 41 PM-managed list */}
       {tab === "categories" && (
         <>
           <h2 className="text-xl font-semibold text-brand-900 mb-6">Categories</h2>
-          {loading ? (
+
+          <form
+            onSubmit={handleCreateCategory}
+            className="border border-brand-200 bg-white p-5 mb-6"
+          >
+            <label className="input-label" htmlFor="new-category-name">
+              Add a New Category
+            </label>
+            <div className="flex flex-col sm:flex-row gap-3 mt-2">
+              <input
+                id="new-category-name"
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="e.g. Outerwear"
+                className="input-field flex-1"
+                maxLength={60}
+                disabled={creatingCategory}
+              />
+              <button
+                type="submit"
+                disabled={creatingCategory || !newCategoryName.trim()}
+                className="px-4 py-2 text-xs font-medium tracking-wide bg-brand-900 text-white hover:bg-brand-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {creatingCategory ? "Adding..." : "Add Category"}
+              </button>
+            </div>
+            {categoryFormError && (
+              <p className="text-sm text-red-600 mt-3">{categoryFormError}</p>
+            )}
+          </form>
+
+          {managedCategoriesLoading || loading ? (
             <div className="flex justify-center py-20">
               <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {categories.map((cat) => {
-                const count = products.filter((p) => p.category === cat).length;
+              {managedCategories.map((cat) => {
+                const count = products.filter((p) => p.category === cat.name).length;
+                const isDeleting = deletingCategoryId === cat.id;
                 return (
-                  <div key={cat} className="border border-brand-200 p-5 bg-white">
-                    <p className="font-medium text-brand-900">{cat}</p>
-                    <p className="text-sm text-brand-400 mt-1">
-                      {count} product{count !== 1 ? "s" : ""}
-                    </p>
+                  <div
+                    key={cat.id}
+                    className={`border border-brand-200 p-5 bg-white flex flex-col justify-between gap-3 transition-opacity ${
+                      isDeleting ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div>
+                      <p className="font-medium text-brand-900">{cat.name}</p>
+                      <p className="text-sm text-brand-400 mt-1">
+                        {count} product{count !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategory(cat)}
+                      disabled={isDeleting}
+                      className="text-xs tracking-widest uppercase text-red-600 hover:text-red-800 transition-colors self-start disabled:opacity-50"
+                    >
+                      {isDeleting ? "Removing..." : "Remove"}
+                    </button>
                   </div>
                 );
               })}
-              {categories.length === 0 && (
+              {managedCategories.length === 0 && (
                 <p className="text-brand-400 col-span-full py-12 text-center text-sm">
-                  No categories found.
+                  No categories yet — add one above.
                 </p>
               )}
             </div>

@@ -114,6 +114,21 @@ model Product {
   @@map("products")
 }
 
+/// Story 41: Product Manager-controlled category list.
+/// Products still store category as a free-form string; this table is the
+/// authoritative source for which category names are visible on the storefront.
+/// Removal is soft (hidden=true) so historical products keep their category label.
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  hidden    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([hidden])
+  @@map("categories")
+}
+
 model SavedCard {
   id                 Int      @id @default(autoincrement())
   userId             Int      @map("user_id")
