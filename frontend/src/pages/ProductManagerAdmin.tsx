@@ -42,12 +42,50 @@ interface PendingComment {
   product: { id: number; name: string };
 }
 
+// Story 42 sub-task: delivery address shape persisted on each order at checkout.
+interface OrderAddress {
+  fullName: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  postalCode: string;
+  country: string;
+}
+
+interface PmOrder {
+  id: number;
+  invoiceNo: string | null;
+  totalAmount: number;
+  status: string;
+  createdAt: string;
+  user?: { id: number; name: string; email: string };
+  items: { id: number; productName: string; quantity: number }[];
+  address?: OrderAddress | null;
+}
+
 const TABS: { key: Tab; label: string }[] = [
   { key: "products", label: "Products" },
   { key: "categories", label: "Categories" },
   { key: "orders", label: "Orders" },
   { key: "comments", label: "Comments" },
 ];
+
+// Story 42 sub-task: format a delivery address for the PM orders table.
+// Returns an object with a primary line (recipient + city) and a secondary
+// line (street + postal code + country) so the table cell can render two
+// stacked lines for readability without crowding the layout.
+function formatAddressLines(address: OrderAddress | null | undefined): {
+  primary: string;
+  secondary: string;
+} | null {
+  if (!address) return null;
+  const street = [address.line1, address.line2].filter((s) => s && s.trim()).join(", ");
+  const cityLine = [address.city, address.postalCode].filter((s) => s && s.trim()).join(" ");
+  const primary = [address.fullName, cityLine].filter((s) => s && s.trim()).join(" — ");
+  const secondary = [street, address.country].filter((s) => s && s.trim()).join(", ");
+  if (!primary && !secondary) return null;
+  return { primary, secondary };
+}
 
 export default function ProductManagerAdmin() {
   const [tab, setTab] = useState<Tab>("products");
@@ -771,6 +809,7 @@ export default function ProductManagerAdmin() {
                   <tr className="border-b border-brand-200">
                     <th className="text-left py-3 text-brand-500 font-medium">Invoice</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Customer</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Delivery Address</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Items</th>
                     <th className="text-right py-3 text-brand-500 font-medium">Total</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Date</th>
@@ -797,6 +836,22 @@ export default function ProductManagerAdmin() {
                         <td className="py-3 text-brand-700 whitespace-nowrap">
                           <div className="font-medium text-brand-900">{o.user?.name ?? "—"}</div>
                           <div className="text-xs text-brand-400">{o.user?.email ?? ""}</div>
+                        </td>
+                        <td className="py-3 text-brand-600 max-w-[14rem]">
+                          {(() => {
+                            const lines = formatAddressLines(o.address as OrderAddress | null | undefined);
+                            if (!lines) {
+                              return <span className="text-xs text-brand-300">No address on file</span>;
+                            }
+                            return (
+                              <div className="text-xs leading-snug">
+                                <div className="text-brand-900 font-medium">{lines.primary}</div>
+                                {lines.secondary && (
+                                  <div className="text-brand-500">{lines.secondary}</div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="py-3 text-brand-600 max-w-xs">
                           <p className="line-clamp-2 text-xs">
