@@ -12,7 +12,7 @@ import type { User } from "../types";
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string) => Promise<void>;
   updateProfile: (name: string, email: string) => Promise<void>;
   logout: () => void;
@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // CartContext eventually fetches.
     await syncGuestCart();
     setUser(data.user);
+    return data.user as User;
   };
 
   const register = async (name: string, email: string, password: string) => {

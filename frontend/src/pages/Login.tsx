@@ -17,14 +17,12 @@ export default function Login() {
     setServerError("");
     setSubmitting(true);
     try {
-      await login(data.email, data.password);
-      const stored = localStorage.getItem("user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (parsed?.role === "sales_manager") {
+      const nextUser = await login(data.email, data.password);
+      if (nextUser?.role === "sales_manager") {
         navigate("/admin");
         return;
       }
-      if (parsed?.role === "product_manager") {
+      if (nextUser?.role === "product_manager") {
         navigate("/pm-admin");
         return;
       }
