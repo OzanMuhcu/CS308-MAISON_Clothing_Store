@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { authenticate, authorize } from "../middleware/auth";
-import { listVisibleCategories, createCategory, hideCategory } from "../services/categoryService";
+import { listVisibleCategories, listAllCategories, createCategory, hideCategory } from "../services/categoryService";
 import { AppError } from "../middleware/errorHandler";
 
 const router = Router();
@@ -15,6 +15,21 @@ router.get("/", async (_req: Request, res: Response, next: NextFunction) => {
     next(err);
   }
 });
+
+// GET /api/categories/all — product manager managed list including hidden categories.
+router.get(
+  "/all",
+  authenticate,
+  authorize("product_manager"),
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const categories = await listAllCategories();
+      res.json(categories);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // POST /api/categories — product manager creates a new category.
 const createSchema = z.object({
