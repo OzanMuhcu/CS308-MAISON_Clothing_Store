@@ -100,6 +100,7 @@ export default function ProductManagerAdmin() {
   const [pmOrdersLoading, setPmOrdersLoading] = useState(false);
   const [pmStatusUpdating, setPmStatusUpdating] = useState<number | null>(null);
   const [pmOrdersError, setPmOrdersError] = useState("");
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<number | null>(null);
 
   // Story 41 — managed categories (separate from the distinct-from-products
   // list used elsewhere on this page).
@@ -333,6 +334,27 @@ export default function ProductManagerAdmin() {
       setPmOrdersError(err.response?.data?.error || "Failed to update status.");
     } finally {
       setPmStatusUpdating(null);
+    }
+  }
+
+  async function handleDownloadInvoice(orderId: number, invoiceNo: string | null) {
+    setDownloadingInvoiceId(orderId);
+    setPmOrdersError("");
+    try {
+      const response = await api.get(`/orders/manager/${orderId}/invoice`, { responseType: "blob" });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${invoiceNo || `order-${orderId}`}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setPmOrdersError(err.response?.data?.error || "Failed to download invoice.");
+    } finally {
+      setDownloadingInvoiceId(null);
     }
   }
 
@@ -830,8 +852,17 @@ export default function ProductManagerAdmin() {
                     const nextLabel = o.status === "processing" ? "Mark In Transit" : o.status === "in_transit" ? "Mark Delivered" : null;
                     return (
                       <tr key={o.id} className="border-b border-brand-100 hover:bg-brand-50 transition-colors">
-                        <td className="py-3 font-mono text-xs text-brand-500 whitespace-nowrap">
-                          {o.invoiceNo || `#${o.id}`}
+                        <td className="py-3 font-mono text-xs whitespace-nowrap">
+                          <a
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleDownloadInvoice(o.id, o.invoiceNo);
+                            }}
+                            className="text-brand-700 underline underline-offset-2 hover:text-brand-900 transition-colors"
+                          >
+                            {downloadingInvoiceId === o.id ? "Downloading..." : (o.invoiceNo || `#${o.id}`)}
+                          </a>
                         </td>
                         <td className="py-3 text-brand-700 whitespace-nowrap">
                           <div className="font-medium text-brand-900">{o.user?.name ?? "—"}</div>
