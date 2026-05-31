@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 import type { Category } from "../types";
 
@@ -33,10 +34,13 @@ const EMPTY_FORM = {
   distributorInfo: "",
 };
 
-interface PendingComment {
+// Story 44: moderation queue item. Same shape as the old PendingComment
+// but renamed to reflect that the admin endpoint can return any status
+// (pending / approved / rejected), not just pending.
+interface AdminComment {
   id: number;
   text: string;
-  status: string;
+  status: "pending" | "approved" | "rejected";
   createdAt: string;
   user: { id: number; name: string; email: string };
   product: { id: number; name: string };
@@ -91,7 +95,7 @@ export default function ProductManagerAdmin() {
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [comments, setComments] = useState<PendingComment[]>([]);
+  const [comments, setComments] = useState<AdminComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [moderating, setModerating] = useState<number | null>(null);
 
@@ -136,9 +140,12 @@ export default function ProductManagerAdmin() {
         .finally(() => setLoading(false));
     }
     if (tab === "comments") {
+      // Story 44: switch to the new admin endpoint so we get user + product
+      // context for every row. Status filter narrows to pending in this
+      // commit; the next commit shows all statuses with badges.
       setCommentsLoading(true);
       api
-        .get("/reviews/pending")
+        .get("/reviews/admin/comments", { params: { status: "pending" } })
         .then(({ data }) => setComments(Array.isArray(data) ? data : []))
         .catch(console.error)
         .finally(() => setCommentsLoading(false));
@@ -921,17 +928,26 @@ export default function ProductManagerAdmin() {
                 </thead>
                 <tbody>
                   {comments.map((c) => (
-                    <tr key={c.id} className="border-b border-brand-100 hover:bg-brand-50 transition-colors">
-                      <td className="py-3 font-medium text-brand-900 whitespace-nowrap">{c.product.name}</td>
+                    <tr key={c.id} className="border-b border-brand-100 hover:bg-brand-50 transition-colors align-top">
+                      <td className="py-3 whitespace-nowrap">
+                        {/* Story 44: link to the product so the PM can verify
+                            the comment is on the correct item before moderating. */}
+                        <Link
+                          to={`/products/${c.product.id}`}
+                          className="font-medium text-brand-900 hover:underline underline-offset-2"
+                        >
+                          {c.product.name}
+                        </Link>
+                      </td>
                       <td className="py-3 text-brand-600 whitespace-nowrap">
-                        <div>{c.user.name}</div>
+                        <div className="font-medium text-brand-900">{c.user.name}</div>
                         <div className="text-xs text-brand-400">{c.user.email}</div>
                       </td>
-                      <td className="py-3 text-brand-700 max-w-xs">
-                        <p className="line-clamp-3 whitespace-pre-wrap break-words">{c.text}</p>
+                      <td className="py-3 text-brand-700 max-w-md">
+                        <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-snug">{c.text}</p>
                       </td>
                       <td className="py-3 text-brand-400 whitespace-nowrap text-xs">
-                        {new Date(c.createdAt).toLocaleDateString()}
+                        {new Date(c.createdAt).toLocaleString()}
                       </td>
                       <td className="py-3 text-right whitespace-nowrap">
                         <div className="flex gap-2 justify-end">
