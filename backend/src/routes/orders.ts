@@ -227,6 +227,40 @@ router.get(
   }
 );
 
+// GET /api/orders/manager/:id/invoice — product manager invoice download
+router.get(
+  "/manager/:id/invoice",
+  authorize("product_manager"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const orderId = parseInt(req.params.id as string, 10);
+      if (isNaN(orderId)) {
+        res.status(400).json({ error: "Invalid order ID" });
+        return;
+      }
+
+      const order = await getOrderForAdmin(orderId);
+      if (!order.user) throw new AppError(404, "User not found");
+
+      const pdfBuffer = await generateInvoicePdf({
+        invoiceNo: order.invoiceNo || `ORD-${order.id}`,
+        date: new Date(order.createdAt),
+        customerName: order.user.name,
+        customerEmail: order.user.email,
+        address: order.address as any,
+        items: order.items,
+        totalAmount: order.totalAmount,
+      });
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${order.invoiceNo || "invoice"}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 const pmStatusSchema = z.object({
   status: z.enum(["in_transit", "delivered"]),
 });
