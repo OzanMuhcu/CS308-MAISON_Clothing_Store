@@ -21,7 +21,7 @@ describe("Login page", () => {
     render(<Login />, { wrapper: Wrapper });
     expect(screen.getByRole("heading", { name: "Sign In" })).toBeTruthy();
     expect(screen.getByLabelText(/email address/i)).toBeTruthy();
-    expect(screen.getByLabelText(/password/i)).toBeTruthy();
+    expect(screen.getByLabelText("Password")).toBeTruthy();
   });
 });
 
