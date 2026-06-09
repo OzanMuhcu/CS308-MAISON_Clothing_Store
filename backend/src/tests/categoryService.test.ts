@@ -15,7 +15,12 @@ jest.mock("../config/db", () => ({
 }));
 
 import prisma from "../config/db";
-import { listAllCategories, createCategory, hideCategory } from "../services/categoryService";
+import {
+  listAllCategories,
+  listVisibleCategories,
+  createCategory,
+  hideCategory,
+} from "../services/categoryService";
 
 const db = prisma as any;
 
@@ -120,5 +125,48 @@ describe("hideCategory", () => {
       where: { category: "Shoes", isActive: true },
       data: { isActive: false },
     });
+  });
+
+  test("throws 404 when category to hide does not exist", async () => {
+    db.category.findUnique.mockResolvedValue(null);
+    await expect(hideCategory(999)).rejects.toThrow("Category not found");
+  });
+});
+
+// ── listVisibleCategories ─────────────────────────────────────────────────────
+
+describe("listVisibleCategories", () => {
+  test("queries only non-hidden categories (hidden: false)", async () => {
+    db.category.findMany.mockResolvedValue([
+      { id: 1, name: "Tops", hidden: false, createdAt: new Date(), updatedAt: new Date() },
+    ]);
+
+    const result = await listVisibleCategories();
+
+    expect(db.category.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { hidden: false } })
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("Tops");
+  });
+});
+
+// ── createCategory — active duplicate rejection ───────────────────────────────
+
+describe("createCategory (duplicate active category)", () => {
+  test("throws 409 when a non-hidden category with the same name already exists", async () => {
+    db.category.findUnique.mockResolvedValue({
+      id: 3, name: "Bags", hidden: false,
+    });
+
+    await expect(createCategory("Bags")).rejects.toThrow("Category with that name already exists");
+  });
+
+  test("throws 400 when name is empty after trimming", async () => {
+    await expect(createCategory("   ")).rejects.toThrow("Category name is required");
+  });
+
+  test("throws 400 when category name exceeds 60 characters", async () => {
+    await expect(createCategory("A".repeat(61))).rejects.toThrow("Category name is too long");
   });
 });

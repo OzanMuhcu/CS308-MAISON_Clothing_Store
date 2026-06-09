@@ -1,4 +1,9 @@
-import { registerSchema, loginSchema } from "../validators/auth";
+import {
+  registerSchema,
+  loginSchema,
+  passwordChangeRequestSchema,
+  passwordChangeVerifySchema,
+} from "../validators/auth";
 import { paymentSchema } from "../validators/payment";
 
 // ---- Zod validation tests ----
@@ -177,6 +182,49 @@ describe("paymentSchema", () => {
 
   test("rejects non-numeric CVV", () => {
     const result = paymentSchema.safeParse({ ...validCard, cvv: "abc" });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ── passwordChangeRequestSchema ───────────────────────────────────────────────
+
+describe("passwordChangeRequestSchema", () => {
+  test("accepts a valid password (8 or more characters)", () => {
+    const result = passwordChangeRequestSchema.safeParse({ password: "newpass1" });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects a password shorter than 8 characters", () => {
+    const result = passwordChangeRequestSchema.safeParse({ password: "short" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects a password longer than 128 characters", () => {
+    const result = passwordChangeRequestSchema.safeParse({ password: "x".repeat(129) });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ── passwordChangeVerifySchema ────────────────────────────────────────────────
+
+describe("passwordChangeVerifySchema", () => {
+  test("accepts a valid 6-digit numeric code", () => {
+    const result = passwordChangeVerifySchema.safeParse({ code: "123456" });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects a code shorter than 6 digits", () => {
+    const result = passwordChangeVerifySchema.safeParse({ code: "12345" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects a code longer than 6 digits", () => {
+    const result = passwordChangeVerifySchema.safeParse({ code: "1234567" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects a code containing non-digit characters", () => {
+    const result = passwordChangeVerifySchema.safeParse({ code: "12345A" });
     expect(result.success).toBe(false);
   });
 });

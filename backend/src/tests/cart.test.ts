@@ -136,6 +136,18 @@ describe("removeCartItem", () => {
   });
 });
 
+// ── updateCartItem service — stock guard ──────────────────────────────────────
+
+describe("updateCartItem (stock guard)", () => {
+  test("throws 400 when new quantity exceeds available stock", async () => {
+    db.cartItem.findUnique.mockResolvedValue({
+      id: 7, userId: 1, productId: 1, quantity: 2,
+      product: { stockQty: 3 },
+    });
+    await expect(updateCartItem(1, 7, 5)).rejects.toThrow("Only 3 units available");
+  });
+});
+
 // ── syncCart service ──────────────────────────────────────────────────────────
 
 describe("syncCart", () => {
@@ -147,5 +159,44 @@ describe("syncCart", () => {
 
     expect(db.cartItem.create).not.toHaveBeenCalled();
     expect(db.cartItem.update).not.toHaveBeenCalled();
+  });
+
+  test("creates a new cart item when product is in stock and not already in cart", async () => {
+    db.product.findUnique.mockResolvedValue({ id: 2, stockQty: 10, name: "Jacket", price: 120, sku: "J001", imageUrl: "" });
+    db.cartItem.findUnique.mockResolvedValue(null); // not in cart yet
+    db.cartItem.create.mockResolvedValue({ id: 9, userId: 1, productId: 2, quantity: 3 });
+    db.cartItem.findMany.mockResolvedValue([]); // getCart stub
+
+    await syncCart(1, [{ productId: 2, quantity: 3 }]);
+
+    expect(db.cartItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ productId: 2, quantity: 3 }) })
+    );
+  });
+
+  test("merges into existing item and caps merged quantity at stock", async () => {
+    const product = { id: 3, stockQty: 5, name: "Hat", price: 30, sku: "H001", imageUrl: "" };
+    db.product.findUnique.mockResolvedValue(product);
+    db.cartItem.findUnique.mockResolvedValue({ id: 11, userId: 1, productId: 3, quantity: 4 });
+    db.cartItem.update.mockResolvedValue({ id: 11, userId: 1, productId: 3, quantity: 5 });
+    db.cartItem.findMany.mockResolvedValue([]); // getCart stub
+
+    // request 3 more (4 existing + 3 = 7, but stockQty = 5, so merged = 5)
+    await syncCart(1, [{ productId: 3, quantity: 3 }]);
+
+    expect(db.cartItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { quantity: 5 } })
+    );
+  });
+});
+
+// ── clearCart service ─────────────────────────────────────────────────────────
+
+describe("clearCart", () => {
+  test("calls cartItem.deleteMany for the given userId", async () => {
+    db.cartItem.deleteMany.mockResolvedValue({ count: 3 });
+    const { clearCart } = require("../services/cartService");
+    await clearCart(1);
+    expect(db.cartItem.deleteMany).toHaveBeenCalledWith({ where: { userId: 1 } });
   });
 });
