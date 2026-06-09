@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Checkout from "../pages/Checkout";
 import Payment from "../pages/Payment";
@@ -120,6 +120,28 @@ describe("Checkout page", () => {
   test("shows cart item name in the order summary panel", async () => {
     render(<Checkout />, { wrapper: Wrapper });
     expect(await screen.findByText("Classic Shirt")).toBeTruthy();
+  });
+});
+
+// ── Checkout — postal code validation ────────────────────────────────────────
+
+describe("Checkout page — postal code validation", () => {
+  test("shows error when non-5-digit postal code is submitted", async () => {
+    render(<Checkout />, { wrapper: Wrapper });
+    // Wait for loading to finish — addresses API returns [], so mode switches to "new"
+    // and the one-time address form becomes visible.
+    const fullNameInput = await screen.findByPlaceholderText("John Smith");
+
+    fireEvent.change(fullNameInput, { target: { value: "Alice Smith" } });
+    fireEvent.change(screen.getByPlaceholderText("123 Main Street"), { target: { value: "1 Test St" } });
+    fireEvent.change(screen.getByPlaceholderText("Istanbul"), { target: { value: "Istanbul" } });
+    // 3-digit postal code — fails the ^\d{5}$ check
+    fireEvent.change(screen.getByPlaceholderText("00000"), { target: { value: "123" } });
+    fireEvent.change(screen.getByPlaceholderText("Turkey"), { target: { value: "Turkey" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));
+
+    expect(await screen.findByText("Postal code must be exactly 5 digits.")).toBeTruthy();
   });
 });
 

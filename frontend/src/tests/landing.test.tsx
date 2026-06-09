@@ -73,17 +73,17 @@ beforeEach(() => {
 describe("Landing — hero section", () => {
   test("renders hero headline", async () => {
     render(<Landing />, { wrapper: Wrapper });
-    expect(screen.getByText(/considered clothing/i)).toBeTruthy();
+    expect(await screen.findByText(/considered clothing/i)).toBeTruthy();
   });
 
   test("renders Shop Now link", async () => {
     render(<Landing />, { wrapper: Wrapper });
-    expect(screen.getByText("Shop Now")).toBeTruthy();
+    expect(await screen.findByText("Shop Now")).toBeTruthy();
   });
 
   test("renders Collection heading", async () => {
     render(<Landing />, { wrapper: Wrapper });
-    expect(screen.getByText("Collection")).toBeTruthy();
+    expect(await screen.findByText("Collection")).toBeTruthy();
   });
 });
 
@@ -115,7 +115,7 @@ describe("Landing — product grid", () => {
 
   test("renders Search input field", async () => {
     render(<Landing />, { wrapper: Wrapper });
-    expect(screen.getByPlaceholderText("Search...")).toBeTruthy();
+    expect(await screen.findByPlaceholderText("Search...")).toBeTruthy();
   });
 
   test("renders category dropdown with All Categories default", async () => {

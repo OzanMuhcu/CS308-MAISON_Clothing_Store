@@ -1,10 +1,7 @@
 import jwt from "jsonwebtoken";
 import { authenticate, authorize } from "../middleware/auth";
+import { env } from "../config/env";
 import type { Request, Response, NextFunction } from "express";
-
-// The env module defaults jwtSecret to "dev-secret-change-in-production"
-// when JWT_SECRET is not set — use that value in all token fixtures.
-const TEST_SECRET = "dev-secret-change-in-production";
 
 function makeReq(overrides: Record<string, any> = {}): Request {
   return { headers: {}, ...overrides } as unknown as Request;
@@ -55,7 +52,7 @@ describe("authenticate", () => {
 
   test("calls next() and attaches decoded user when token is valid", () => {
     const payload = { userId: 7, email: "alice@test.com", role: "customer" };
-    const token = jwt.sign(payload, TEST_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign(payload, env.jwtSecret, { expiresIn: "1h" });
     const req = makeReq({ headers: { authorization: `Bearer ${token}` } });
     const { res } = makeRes();
     const next = jest.fn() as unknown as NextFunction;
@@ -68,7 +65,7 @@ describe("authenticate", () => {
   });
 
   test("returns 401 for an expired token", () => {
-    const token = jwt.sign({ userId: 1, role: "customer" }, TEST_SECRET, { expiresIn: "0s" });
+    const token = jwt.sign({ userId: 1, role: "customer" }, env.jwtSecret, { expiresIn: "0s" });
     const req = makeReq({ headers: { authorization: `Bearer ${token}` } });
     const { res, status } = makeRes();
     const next = jest.fn() as unknown as NextFunction;
