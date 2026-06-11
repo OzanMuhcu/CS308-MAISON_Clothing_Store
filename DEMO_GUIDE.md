@@ -183,27 +183,39 @@ Orders visible in this range:
 
 ## 6. Real Email Configuration (Required Before Demo)
 
-The backend uses real SMTP when these variables are present in `backend/.env`. Add them locally — **do not commit them**.
+### Email flow
 
-Required variables (placeholders only shown here):
+| Role | Address |
+|---|---|
+| **Recipient (customer inbox)** | `esat.celebioglu@sabanciuniv.edu` |
+| **SMTP sender account** | `noreplymaisoncs308@gmail.com` |
+
+All three email types (invoice, wishlist discount notification, refund decision) are sent **FROM** `noreplymaisoncs308@gmail.com` **TO** `esat.celebioglu@sabanciuniv.edu`. This happens automatically because the customer's account email in the seed is `esat.celebioglu@sabanciuniv.edu` and the SMTP sender identity is controlled by the `.env` variables below.
+
+### Local `.env` configuration
+
+Add the following to `backend/.env` **locally**. **Do not commit this file.**
 
 ```
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=your-gmail-address@gmail.com
-SMTP_PASS=your-gmail-app-password
-SMTP_FROM=your-gmail-address@gmail.com
+SMTP_USER=noreplymaisoncs308@gmail.com
+SMTP_PASS=<gmail-app-password-goes-here>
+SMTP_FROM=noreplymaisoncs308@gmail.com
 ```
 
-For Gmail: generate an **App Password** (Google Account → Security → 2-Step Verification → App passwords). Use that as `SMTP_PASS`, not your Gmail login password.
+`SMTP_PASS` must be a **Gmail App Password**, not the Gmail account password. Generate one at: **Google Account → Security → 2-Step Verification → App passwords**. The 16-character app password is entered only in your local `.env` file and must never be committed to the repository.
 
-**If `SMTP_HOST` / `SMTP_USER` are missing:** the backend falls back to Ethereal (a disposable test SMTP service). You will see a preview URL in the backend terminal output — but this URL is NOT a real inbox. For the final demo, real SMTP must be configured so that `esat.celebioglu@sabanciuniv.edu` actually receives the emails.
+### Ethereal fallback (NOT suitable for demo)
 
-**How to verify before the demo:**
-1. Start the backend with real SMTP configured.
-2. Log in as the customer and purchase any item.
-3. Check `esat.celebioglu@sabanciuniv.edu` — an invoice PDF email should arrive within 30 seconds.
-4. If it arrives, email is working. If not, check backend console for SMTP errors.
+If `SMTP_HOST` or `SMTP_USER` is missing, the backend automatically falls back to Ethereal — a disposable test SMTP service. In this mode, no real email is delivered; instead a preview URL is printed to the backend terminal. **This is not sufficient for the final demo.** Real SMTP must be configured so that `esat.celebioglu@sabanciuniv.edu` actually receives the emails.
+
+### How to verify before the demo
+
+1. Add the SMTP variables above to `backend/.env` and restart the backend (`npm run dev`).
+2. Log in as the customer (`esat.celebioglu@sabanciuniv.edu`) and purchase any item.
+3. Check the inbox at `esat.celebioglu@sabanciuniv.edu` — an invoice PDF email from `noreplymaisoncs308@gmail.com` should arrive within 30 seconds.
+4. If it arrives, email is working. If not, check the backend terminal for lines starting with `[Email]` — they will indicate whether real SMTP or Ethereal was used, and any error messages.
 
 ---
 

@@ -169,7 +169,7 @@ JWT_SECRET="replace-with-a-random-string-at-least-32-chars"
 PORT=4000
 ```
 
-For email: leave all `SMTP_*` fields blank to use Ethereal (a test mail service). The backend will print a preview URL to the terminal after each email. To send real email via Gmail, fill in `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (Gmail app password), and `SMTP_FROM`.
+For email: leave all `SMTP_*` fields blank to use Ethereal (a test mail service). The backend will print a preview URL to the terminal after each email. To send real email via Gmail, fill in `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER` and `SMTP_FROM` (the sender Gmail address — for the demo this is `noreplymaisoncs308@gmail.com`), and `SMTP_PASS` (a Gmail App Password, **not** the account password — generate one at Google Account → Security → App Passwords). Never commit real credentials.
 
 ```bash
 npm install
