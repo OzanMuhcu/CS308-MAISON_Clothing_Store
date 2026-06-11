@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { env } from "./config/env";
 import { errorHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/auth";
@@ -13,6 +15,18 @@ import reviewRoutes from "./routes/reviews";
 import categoryRoutes from "./routes/categories";
 
 const app = express();
+
+// Security: set safe HTTP response headers
+app.use(helmet());
+
+// Rate limiting on auth endpoints: 20 requests per 15 min per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+});
 
 const allowedOrigins = ["http://localhost:5173", "http://localhost:5174"];
 
@@ -34,7 +48,7 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json());
 
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/payment", paymentRoutes);

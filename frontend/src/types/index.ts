@@ -3,6 +3,7 @@ export interface User {
   name: string;
   email: string;
   role: "customer" | "sales_manager" | "product_manager";
+  taxId?: string | null;
   createdAt: string;
   /** Story 14: user's saved default delivery address; null if not yet set. */
   defaultAddress?: OrderAddress | null;

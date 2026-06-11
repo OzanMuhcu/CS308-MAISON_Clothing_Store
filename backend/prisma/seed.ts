@@ -39,12 +39,12 @@ async function main() {
   console.log("Creating users...");
   const hash = await bcrypt.hash("password123", 12);
   const customer = await prisma.user.create({
-    data: { name: "Polat Canpolat", email: "customer@demo.com", passwordHash: hash, role: "customer" },
+    data: { name: "Polat Canpolat", email: "customer@demo.com", passwordHash: hash, role: "customer", taxId: "TR-1234567890" },
   });
   await prisma.user.createMany({
     data: [
-      { name: "Sarah Keller",  email: "sales@demo.com",   passwordHash: hash, role: "sales_manager" },
-      { name: "Peter Durand",  email: "product@demo.com", passwordHash: hash, role: "product_manager" },
+      { name: "Sarah Keller",  email: "sales@demo.com",   passwordHash: hash, role: "sales_manager",    taxId: "TR-9876543210" },
+      { name: "Peter Durand",  email: "product@demo.com", passwordHash: hash, role: "product_manager",  taxId: "TR-5678901234" },
     ],
   });
 

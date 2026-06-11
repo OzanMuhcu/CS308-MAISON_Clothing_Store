@@ -132,6 +132,7 @@ describe("createOrder", () => {
             id: 1, name: "Classic Shirt", price: 49.99, stockQty: 10, discount: 0,
           }),
           update: jest.fn().mockResolvedValue({}),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
         order: {
           create: jest.fn().mockImplementation(({ data }: any) => ({
@@ -168,6 +169,7 @@ describe("createOrder", () => {
             discountEndsAt: null,
           }),
           update: jest.fn().mockResolvedValue({}),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
         order: {
           create: jest.fn().mockImplementation(({ data }: any) => ({

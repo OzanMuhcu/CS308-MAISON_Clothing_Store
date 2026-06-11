@@ -6,6 +6,7 @@ import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SalesManagerRoute from "./components/SalesManagerRoute";
 import ProductManagerRoute from "./components/ProductManagerRoute";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -28,6 +29,7 @@ import SizeGuide from "./pages/SizeGuide";
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
@@ -61,5 +63,6 @@ export default function App() {
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }

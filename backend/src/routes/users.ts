@@ -13,7 +13,13 @@ router.use(authenticate);
 
 const profileUpdateSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Email must be valid"),
+  email: z.string().trim().email("Email must be valid"),
+  taxId: z
+    .string()
+    .trim()
+    .max(20, "Tax ID must be under 20 characters")
+    .optional()
+    .nullable(),
 });
 
 router.put("/me", async (req: Request, res: Response, next: NextFunction) => {
@@ -39,10 +45,11 @@ router.put("/me", async (req: Request, res: Response, next: NextFunction) => {
       data: {
         name: data.name,
         email: data.email,
+        ...(data.taxId !== undefined ? { taxId: data.taxId } : {}),
       },
     });
 
-    res.json({ user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, createdAt: updated.createdAt } });
+    res.json({ user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, taxId: updated.taxId ?? null, createdAt: updated.createdAt } });
   } catch (err) {
     next(err);
   }

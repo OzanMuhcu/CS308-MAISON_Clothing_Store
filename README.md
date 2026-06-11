@@ -401,12 +401,38 @@ Both `Checkout.tsx` and the `POST /api/orders` Zod schema enforce exactly 5 nume
 
 ---
 
+## Customer Data Model
+
+Every customer account stores the following properties:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `Int` (auto-increment) | Unique primary key. Exposed as Customer ID in the account page. |
+| `name` | `String` | Full display name. |
+| `email` | `String` (unique) | Login identifier. |
+| `taxId` | `String?` | Optional business/personal tax identifier (e.g. `TR-1234567890`). Can be set in the account page. |
+| `passwordHash` | `String` | Passwords are **never stored in plaintext**. They are hashed with **bcryptjs** at cost factor 12 before being written to the database. The raw password is discarded immediately after hashing. |
+| `defaultAddress` | `Json?` | Snapshot of the most recent saved delivery address (fullName, line1, city, postalCode, country). |
+| `addresses` | `UserAddress[]` | Full list of named saved delivery addresses (label, fullName, line1, line2, city, postalCode, country). |
+| `createdAt` | `DateTime` | Account creation timestamp. |
+
+The account page displays Customer ID, name, email, Tax ID, and account type. The password field shows only dots and a note: *"securely hashed, never stored in plaintext."*
+
+---
+
 ## Security Notes
 
 - Never commit `.env` to version control. It is listed in `.gitignore`.
 - `JWT_SECRET` must be a long, randomly generated string. The default in `.env.example` is a placeholder — replace it before running the project.
 - SMTP credentials should use Gmail App Passwords (not your account password). Generate one at **Google Account → Security → App Passwords**. Use the 16-character app password as `SMTP_PASS`.
 - Do not share or publish real SMTP passwords, database credentials, or JWT secrets.
+- **JWT authentication:** Every protected route requires a valid `Authorization: Bearer <token>` header. Tokens are signed with `JWT_SECRET` and expire after the configured duration (`JWT_EXPIRES_IN`).
+- **Password hashing:** Passwords are hashed with bcryptjs at cost factor 12. The hash is stored in `password_hash`; the plaintext is never logged or persisted.
+- **Parameterized queries:** All database access uses Prisma's query builder, which automatically parameterizes inputs and prevents SQL injection.
+- **Helmet:** HTTP response headers are hardened with the `helmet` middleware (X-Frame-Options, X-Content-Type-Options, CSP, etc.).
+- **Rate limiting:** Auth endpoints (`/api/auth/*`) are limited to 20 requests per IP per 15-minute window to slow brute-force attempts.
+- **Concurrency / overselling protection:** Order creation runs inside `prisma.$transaction()`. Stock is decremented with a conditional `WHERE stock_qty >= quantity` update. If that update touches 0 rows (stock was just claimed by a concurrent request), the transaction throws and rolls back, preventing overselling.
+- **Input validation:** All user-supplied data is validated with Zod schemas (trimmed strings, length bounds, regex patterns) before reaching the database.
 
 ---
 

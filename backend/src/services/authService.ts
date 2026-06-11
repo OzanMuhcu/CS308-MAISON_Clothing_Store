@@ -16,8 +16,8 @@ function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
 }
 
-function safeUser(user: { id: number; name: string; email: string; role: string; createdAt: Date }) {
-  return { id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt };
+function safeUser(user: { id: number; name: string; email: string; role: string; taxId?: string | null; createdAt: Date }) {
+  return { id: user.id, name: user.name, email: user.email, role: user.role, taxId: user.taxId ?? null, createdAt: user.createdAt };
 }
 
 async function createEmailTransporter() {
@@ -207,9 +207,31 @@ export async function loginUser(input: z.infer<typeof loginSchema>) {
 }
 
 export async function getMe(userId: number) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      addresses: {
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 1,
+      },
+    },
+  });
   if (!user) {
     throw new AppError(404, "User not found");
   }
-  return safeUser(user);
+  const base = safeUser(user);
+  const addr = user.addresses[0] ?? null;
+  return {
+    ...base,
+    defaultAddress: addr
+      ? {
+          fullName: addr.fullName,
+          line1: addr.line1,
+          line2: addr.line2,
+          city: addr.city,
+          postalCode: addr.postalCode,
+          country: addr.country,
+        }
+      : null,
+  };
 }

@@ -14,7 +14,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  updateProfile: (name: string, email: string) => Promise<void>;
+  updateProfile: (name: string, email: string, taxId?: string | null) => Promise<void>;
   logout: () => void;
 }
 
@@ -83,8 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   };
 
-  const updateProfile = async (name: string, email: string) => {
-    const { data } = await api.put("/users/me", { name, email });
+  const updateProfile = async (name: string, email: string, taxId?: string | null) => {
+    const { data } = await api.put("/users/me", { name, email, taxId });
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);
   };

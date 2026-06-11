@@ -50,6 +50,7 @@ export default function Account() {
   const { user, updateProfile } = useAuth();
   const [profileName, setProfileName] = useState(user?.name ?? "");
   const [profileEmail, setProfileEmail] = useState(user?.email ?? "");
+  const [profileTaxId, setProfileTaxId] = useState(user?.taxId ?? "");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saved" | "error">("idle");
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -89,6 +90,7 @@ export default function Account() {
     if (!user) return;
     setProfileName(user.name);
     setProfileEmail(user.email);
+    setProfileTaxId(user.taxId ?? "");
     setProfileStatus("idle");
     setProfileError(null);
   }, [user]);
@@ -132,6 +134,7 @@ export default function Account() {
   const handleCancelProfileEdit = () => {
     setProfileName(user.name);
     setProfileEmail(user.email);
+    setProfileTaxId(user.taxId ?? "");
     setProfileError(null);
     setProfileStatus("idle");
     setIsEditingProfile(false);
@@ -144,7 +147,7 @@ export default function Account() {
     setProfileSaving(true);
     setProfileStatus("idle");
     try {
-      await updateProfile(profileName.trim(), profileEmail.trim());
+      await updateProfile(profileName.trim(), profileEmail.trim(), profileTaxId.trim() || null);
       setProfileStatus("saved");
       setIsEditingProfile(false);
       setTimeout(() => setProfileStatus("idle"), 3000);
@@ -582,6 +585,17 @@ export default function Account() {
                   placeholder="you@example.com"
                 />
               </div>
+              <div>
+                <label className="input-label">Tax ID <span className="text-brand-400 ml-1">(optional)</span></label>
+                <input
+                  type="text"
+                  value={profileTaxId}
+                  onChange={(e) => setProfileTaxId(e.target.value)}
+                  className="input-field"
+                  placeholder="TR-1234567890"
+                  maxLength={20}
+                />
+              </div>
               <div className="flex items-center gap-4 pt-1">
                 <button type="submit" disabled={profileSaving} className="btn-primary">
                   {profileSaving ? "Saving..." : "Save Changes"}
@@ -605,14 +619,19 @@ export default function Account() {
             </form>
           ) : (
             <div className="divide-y divide-brand-100">
+              <Row label="Customer ID" value={`#${user.id}`} />
               <Row label="Name" value={user.name} />
               <Row label="Email" value={user.email} />
+              <Row label="Tax ID" value={user.taxId || "Not set"} />
               <Row label="Account Type" value={roles[user.role] || user.role} />
               <div className="flex justify-between items-center px-5 py-3.5">
                 <span className="text-xs tracking-wider uppercase text-brand-500 font-medium">
                   Password
                 </span>
-                <span className="text-sm text-brand-900">••••••••</span>
+                <span className="text-sm text-brand-500 italic">
+                  ••••••••
+                  <span className="ml-2 not-italic text-xs text-brand-400">(securely hashed, never stored in plaintext)</span>
+                </span>
               </div>
               <div className="flex justify-between items-center px-5 py-3.5">
                 <span className="text-xs tracking-wider uppercase text-brand-500 font-medium">

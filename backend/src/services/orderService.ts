@@ -25,12 +25,19 @@ async function restoreStock(tx: any, items: { productId: number; quantity: numbe
 
 /**
  * Story 16: Create order from the user's current cart.
- * Runs inside a transaction to guarantee:
- *  1. All cart items have sufficient stock
- *  2. Stock is decremented atomically
- *  3. Order + items are created
- *  4. Cart is cleared
- * If any step fails, everything rolls back.
+ *
+ * Concurrency safety:
+ *  - The entire flow runs inside prisma.$transaction(), so all reads and writes
+ *    are atomic at the database level. If any step throws, Postgres rolls back
+ *    everything — no partial orders, no phantom stock decrements.
+ *  - Stock is decremented with a conditional WHERE clause:
+ *      WHERE id = ? AND stock_qty >= quantity
+ *    If that update touches 0 rows it means another concurrent checkout already
+ *    claimed that stock between our SELECT and UPDATE. We throw immediately so
+ *    neither order oversells the product.
+ *  - Because the transaction holds a row-level lock after the conditional UPDATE,
+ *    a race cannot succeed for the same product: one transaction wins, the other
+ *    sees 0 affected rows and is rejected.
  */
 export async function createOrder(userId: number, address: AddressSnapshot) {
   return prisma.$transaction(async (tx: any) => {
@@ -73,11 +80,14 @@ export async function createOrder(userId: number, address: AddressSnapshot) {
         lineTotal,
       });
 
-      // 3. Decrement stock
-      await tx.product.update({
-        where: { id: product.id },
+      // 3. Decrement stock only if sufficient quantity still exists (prevents overselling under concurrency)
+      const updated = await tx.product.updateMany({
+        where: { id: product.id, stockQty: { gte: ci.quantity } },
         data: { stockQty: { decrement: ci.quantity } },
       });
+      if (updated.count === 0) {
+        throw new AppError(400, `Stock for "${product.name}" was just claimed by another order. Please try again.`);
+      }
     }
 
     totalAmount = Math.round(totalAmount * 100) / 100;

@@ -42,6 +42,7 @@ model User {
   passwordChangeCodeExpiresAt DateTime? @map("password_change_code_expires_at")
   passwordChangeNewHash       String?   @map("password_change_new_hash")
   role                        Role      @default(customer)
+  taxId                       String?   @map("tax_id")
   /// Story 14: nullable JSON default delivery address snapshot.
   /// Shape: { fullName, line1, line2?, city, postalCode, country }
   defaultAddress              Json?     @map("default_address")
