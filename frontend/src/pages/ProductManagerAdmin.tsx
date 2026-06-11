@@ -59,7 +59,7 @@ interface PmOrder {
   status: string;
   createdAt: string;
   user?: { id: number; name: string; email: string };
-  items: { id: number; productName: string; quantity: number }[];
+  items: { id: number; productId?: number; productName: string; quantity: number }[];
   address?: OrderAddress | null;
 }
 
@@ -933,6 +933,7 @@ export default function ProductManagerAdmin() {
                         <td className="py-3 text-brand-700 whitespace-nowrap">
                           <div className="font-medium text-brand-900">{o.user?.name ?? "—"}</div>
                           <div className="text-xs text-brand-400">{o.user?.email ?? ""}</div>
+                          <div className="text-xs text-brand-400 font-mono">ID: {o.user?.id ?? "—"}</div>
                         </td>
                         <td className="py-3 text-brand-600 max-w-[14rem]">
                           {(() => {
@@ -951,9 +952,16 @@ export default function ProductManagerAdmin() {
                           })()}
                         </td>
                         <td className="py-3 text-brand-600 max-w-xs">
-                          <p className="line-clamp-2 text-xs">
-                            {o.items.map((i: any) => `${i.productName} ×${i.quantity}`).join(", ")}
-                          </p>
+                          <div className="text-xs space-y-0.5">
+                            {o.items.map((i: any) => (
+                              <div key={i.id ?? i.productName}>
+                                {i.productName} ×{i.quantity}
+                                {i.productId != null && (
+                                  <span className="text-brand-400 font-mono ml-1">[#{i.productId}]</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </td>
                         <td className="py-3 text-right text-brand-900 whitespace-nowrap font-medium">
                           ${Number(o.totalAmount).toFixed(2)}

@@ -38,8 +38,9 @@ async function main() {
 
   console.log("Creating users...");
   const hash = await bcrypt.hash("password123", 12);
+  // Demo customer — email set to presenter's real address so invoice/notification emails are received live
   const customer = await prisma.user.create({
-    data: { name: "Polat Canpolat", email: "customer@demo.com", passwordHash: hash, role: "customer", taxId: "TR-1234567890" },
+    data: { name: "Polat Canpolat", email: "esat.celebioglu@sabanciuniv.edu", passwordHash: hash, role: "customer", taxId: "TR-1234567890" },
   });
   await prisma.user.createMany({
     data: [
@@ -48,12 +49,27 @@ async function main() {
     ],
   });
 
+  // Seed a home address for the customer (shown in Account page and compared with PM delivery list)
+  await prisma.userAddress.create({
+    data: {
+      userId: customer.id,
+      label: "Home",
+      fullName: "Polat Canpolat",
+      line1: "123 Main St",
+      line2: "",
+      city: "Istanbul",
+      postalCode: "34000",
+      country: "Turkey",
+    },
+  });
+
   console.log("Creating 42 products (6 categories × 7)...");
   await prisma.product.createMany({
     data: [
       // ── Jackets & Coats (7) ──
       {
-        name: "Merino Wool Overcoat", sku: "JC-001", price: 289, stockQty: 12,
+        // Demo label (E): appears in Order 1 (delivered > 1 month). Rate/comment target.
+        name: "Merino Wool Overcoat (E)", sku: "JC-001", price: 289, stockQty: 12,
         description: "Double-breasted overcoat in Italian merino wool. Fully lined, tailored silhouette.",
         imageUrl: "https://images.unsplash.com/photo-1638109879135-285a7b8b5924?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5NDQwMDh8MHwxfHNlYXJjaHwxfHxNZXJpbm8lMjBXb29sJTIwT3ZlcmNvYXR8ZW58MHx8fHwxNzc4MDYzOTkyfDA&ixlib=rb-4.1.0&q=80&w=1080", category: "Jackets & Coats",
         model: "Heritage Outerwear Line", serialNumber: "SN-JC-001",
@@ -88,7 +104,8 @@ async function main() {
         warrantyStatus: warranty(395), distributorInfo: DIST.jackets,
       },
       {
-        name: "Cotton Harrington Jacket", sku: "JC-006", price: 95, stockQty: 0,
+        // Demo label (A): out of stock — "Add to Cart" button must be disabled.
+        name: "Cotton Harrington Jacket (A)", sku: "JC-006", price: 95, stockQty: 0,
         description: "Zip-front Harrington in washed cotton twill. Tartan-lined, elasticated cuffs.",
         imageUrl: "https://images.unsplash.com/photo-1754479139293-045481a6c3b4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5NDQwMDh8MHwxfHNlYXJjaHwxfHxDb3R0b24lMjBIYXJyaW5ndG9uJTIwSmFja2V0fGVufDB8fHx8MTc3ODA2NDAwM3ww&ixlib=rb-4.1.0&q=80&w=1080", category: "Jackets & Coats",
         model: "Heritage Outerwear Line", serialNumber: "SN-JC-006",
@@ -119,7 +136,9 @@ async function main() {
         warrantyStatus: warranty(72), distributorInfo: DIST.shirts,
       },
       {
-        name: "Linen Camp Collar Shirt", sku: "SH-003", price: 78, stockQty: 18,
+        // Demo label (C): > 1 unit in stock. Customer adds this to wishlist live (Step 1.5).
+        // Sales manager sets 20% discount (Step 5.3) → discount notification fires because C is in wishlist.
+        name: "Linen Camp Collar Shirt (C)", sku: "SH-003", price: 78, stockQty: 18,
         description: "Relaxed camp collar in pure European linen. Boxy fit, warm-weather ease.",
         imageUrl: "https://images.unsplash.com/photo-1708531378330-b42fa44a882d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5NDQwMDh8MHwxfHNlYXJjaHwxfHxMaW5lbiUyMENhbXAlMjBDb2xsYXIlMjBTaGlydHxlbnwwfHx8fDE3NzgwNjQwMTJ8MA&ixlib=rb-4.1.0&q=80&w=1080", category: "Shirts",
         model: "Classic Shirts Collection", serialNumber: "SN-SH-003",
@@ -208,15 +227,18 @@ async function main() {
 
       // ── Knitwear (7) ──
       {
-        name: "Cashmere Crew Sweater", sku: "KN-001", price: 195, stockQty: 10,
+        // Demo label (G): appears in Order 2 (processing, cancellable during demo Step 1.7).
+        name: "Cashmere Crew Sweater (G)", sku: "KN-001", price: 195, stockQty: 10,
         description: "Pure Mongolian cashmere, classic crew-neck. Ribbed cuffs and hem.",
         imageUrl: "https://images.unsplash.com/photo-1623393807211-3d70dc56395c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5NDQwMDh8MHwxfHNlYXJjaHwxfHxDYXNobWVyZSUyMENyZXclMjBTd2VhdGVyfGVufDB8fHx8MTc3ODA2NDAzOHww&ixlib=rb-4.1.0&q=80&w=1080", category: "Knitwear",
         model: "Premium Knitwear Series", serialNumber: "SN-KN-001",
         warrantyStatus: warranty(195), distributorInfo: DIST.knitwear,
       },
       {
+        // Demo label (F): appears in Order 4 (delivered < 30 days ago — refundable in Step 2).
+        // Pre-seeded in wishlist → 30% discount notification fires in Step 5.3.
         // KN-002: image fixed (was duplicate of KN-001)
-        name: "Merino V-Neck Sweater", sku: "KN-002", price: 110, stockQty: 24,
+        name: "Merino V-Neck Sweater (F)", sku: "KN-002", price: 110, stockQty: 24,
         description: "Fine-gauge merino wool V-neck. Layer over shirts or wear alone.",
         imageUrl: "https://images.unsplash.com/photo-1599032909736-0155c1d43a6c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5NDQwMDh8MHwxfHNlYXJjaHwxfHxNZXJpbm8lMjBWLU5lY2slMjBTd2VhdGVyfGVufDB8fHx8MTc3ODA2NDA0MHww&ixlib=rb-4.1.0&q=80&w=1080", category: "Knitwear",
         model: "Premium Knitwear Series", serialNumber: "SN-KN-002",
@@ -260,7 +282,8 @@ async function main() {
 
       // ── Footwear (7) ──
       {
-        name: "Leather Chelsea Boots", sku: "FW-001", price: 245, stockQty: 15,
+        // Demo label (H): appears in Order 3 (in_transit — cannot cancel, cannot refund).
+        name: "Leather Chelsea Boots (H)", sku: "FW-001", price: 245, stockQty: 15,
         description: "Full-grain calf leather, Goodyear-welted sole. Elastic side panels.",
         imageUrl: "https://images.unsplash.com/photo-1608629601270-a0007becead3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5NDQwMDh8MHwxfHNlYXJjaHwxfHxMZWF0aGVyJTIwQ2hlbHNlYSUyMEJvb3RzfGVufDB8fHx8MTc3ODA2NDA1M3ww&ixlib=rb-4.1.0&q=80&w=1080", category: "Footwear",
         model: "Artisan Footwear Series", serialNumber: "SN-FW-001",
@@ -281,7 +304,8 @@ async function main() {
         warrantyStatus: warranty(130), distributorInfo: DIST.footwear,
       },
       {
-        name: "Canvas Espadrilles", sku: "FW-004", price: 48, stockQty: 1,
+        // Demo label (B): exactly 1 unit in stock. Customer buys this in Step 3.
+        name: "Canvas Espadrilles (B)", sku: "FW-004", price: 48, stockQty: 1,
         description: "Handmade jute-soled espadrilles in washed cotton canvas.",
         imageUrl: "https://images.unsplash.com/photo-1513654233834-19416b6eed13?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5NDQwMDh8MHwxfHNlYXJjaHwxfHxDYW52YXMlMjBFc3BhZHJpbGxlc3xlbnwwfHx8fDE3NzgwNjQwNjB8MA&ixlib=rb-4.1.0&q=80&w=1080", category: "Footwear",
         model: "Artisan Footwear Series", serialNumber: "SN-FW-004",
@@ -362,50 +386,58 @@ async function main() {
     ],
   });
 
-  // ── Sample orders for customer@demo.com ──
+  // ── Sample orders for the demo customer ──
   console.log("Creating sample orders...");
   const addr = { fullName: "Polat Canpolat", line1: "123 Main St", line2: "", city: "Istanbul", postalCode: "34000", country: "Turkey" };
 
-  const p1 = await prisma.product.findUnique({ where: { sku: "JC-001" } });
-  const p2 = await prisma.product.findUnique({ where: { sku: "SH-001" } });
-  const p3 = await prisma.product.findUnique({ where: { sku: "FW-003" } });
-  const p4 = await prisma.product.findUnique({ where: { sku: "KN-001" } });
-  const p5 = await prisma.product.findUnique({ where: { sku: "TR-002" } });
+  // Fetch the four demo-labeled products
+  const pE = await prisma.product.findUnique({ where: { sku: "JC-001" } }); // Merino Wool Overcoat (E)
+  const pF = await prisma.product.findUnique({ where: { sku: "KN-002" } }); // Merino V-Neck Sweater (F)
+  const pG = await prisma.product.findUnique({ where: { sku: "KN-001" } }); // Cashmere Crew Sweater (G)
+  const pH = await prisma.product.findUnique({ where: { sku: "FW-001" } }); // Leather Chelsea Boots (H)
 
-  if (p1 && p2 && p3 && p4 && p5) {
-    // Order 1: delivered (enables reviews)
+  if (pE && pF && pG && pH) {
+    // Order 1: E — delivered > 30 days ago → review/comment target; refund window closed.
     await prisma.order.create({
       data: {
-        userId: customer.id, totalAmount: 487, status: "delivered", address: addr, invoiceNo: "INV-2026-001",
+        userId: customer.id, totalAmount: Number(pE.price), status: "delivered", address: addr, invoiceNo: "INV-2026-001",
         createdAt: new Date("2026-04-10T14:00:00Z"),
         items: { create: [
-          { productId: p1.id, productName: p1.name, unitPrice: Number(p1.price), quantity: 1, lineTotal: Number(p1.price) },
-          { productId: p2.id, productName: p2.name, unitPrice: Number(p2.price), quantity: 2, lineTotal: Number(p2.price) * 2 },
-          { productId: p3.id, productName: p3.name, unitPrice: Number(p3.price), quantity: 1, lineTotal: Number(p3.price) },
+          { productId: pE.id, productName: pE.name, unitPrice: Number(pE.price), quantity: 1, lineTotal: Number(pE.price) },
         ]},
       },
     });
 
-    // Order 2: processing
+    // Order 2: G — processing → cancellable in Step 1.7.
     await prisma.order.create({
       data: {
-        userId: customer.id, totalAmount: 280, status: "processing", address: addr, invoiceNo: "INV-2026-002",
+        userId: customer.id, totalAmount: Number(pG.price), status: "processing", address: addr, invoiceNo: "INV-2026-002",
         createdAt: new Date("2026-04-18T10:30:00Z"),
         items: { create: [
-          { productId: p4.id, productName: p4.name, unitPrice: Number(p4.price), quantity: 1, lineTotal: Number(p4.price) },
-          { productId: p5.id, productName: p5.name, unitPrice: Number(p5.price), quantity: 1, lineTotal: Number(p5.price) },
+          { productId: pG.id, productName: pG.name, unitPrice: Number(pG.price), quantity: 1, lineTotal: Number(pG.price) },
         ]},
       },
     });
 
-    // Order 3: in transit
+    // Order 3: H — in_transit → cannot cancel, cannot request refund.
     await prisma.order.create({
       data: {
-        userId: customer.id, totalAmount: 120, status: "in_transit", address: addr, invoiceNo: "INV-2026-003",
+        userId: customer.id, totalAmount: Number(pH.price), status: "in_transit", address: addr, invoiceNo: "INV-2026-003",
         createdAt: new Date("2026-04-22T16:00:00Z"),
         items: { create: [
-          { productId: p2.id, productName: p2.name, unitPrice: Number(p2.price), quantity: 1, lineTotal: Number(p2.price) },
-          { productId: p5.id, productName: p5.name, unitPrice: Number(p5.price), quantity: 1, lineTotal: Number(p5.price) },
+          { productId: pH.id, productName: pH.name, unitPrice: Number(pH.price), quantity: 1, lineTotal: Number(pH.price) },
+        ]},
+      },
+    });
+
+    // Order 4: F — delivered within the 30-day refund window → refund request in Step 2.1;
+    // approval in Step 6; stock restored in Step 6.3.
+    await prisma.order.create({
+      data: {
+        userId: customer.id, totalAmount: Number(pF.price), status: "delivered", address: addr, invoiceNo: "INV-2026-004",
+        createdAt: new Date("2026-06-01T10:00:00Z"),
+        items: { create: [
+          { productId: pF.id, productName: pF.name, unitPrice: Number(pF.price), quantity: 1, lineTotal: Number(pF.price) },
         ]},
       },
     });
@@ -417,25 +449,31 @@ async function main() {
     prisma.wishlist.create({ data: { userId: customer.id, name: "Spring Picks" } }),
   ]);
 
-  const wishProducts = await prisma.product.findMany({
-    where: { sku: { in: ["JC-001", "SH-003", "FW-004"] } },
-  });
-
-  if (wishProducts.length > 0) {
-    await prisma.wishlistItem.createMany({
-      data: wishProducts.map((p, idx) => ({
-        wishlistId: idx % 2 === 0 ? w1.id : w2.id,
-        productId: p.id,
-      })),
+  // Pre-seed Product F (KN-002) in the wishlist so the SM's 30% discount in Step 5.3
+  // triggers a real notification email to the customer.
+  // Product C (SH-003) is added live by the customer in Step 1.5 and will also trigger
+  // a notification when the SM sets 20% discount on it in Step 5.3.
+  const pFWish = await prisma.product.findUnique({ where: { sku: "KN-002" } });
+  if (pFWish) {
+    await prisma.wishlistItem.create({
+      data: { wishlistId: w1.id, productId: pFWish.id },
     });
   }
 
   const counts = await Promise.all([prisma.user.count(), prisma.product.count(), prisma.order.count()]);
   console.log(`Seeded ${counts[0]} users, ${counts[1]} products, ${counts[2]} orders.`);
-  console.log("\nAccounts (password: password123):");
-  console.log("  customer@demo.com   (customer)");
-  console.log("  sales@demo.com      (sales_manager)");
-  console.log("  product@demo.com    (product_manager)");
+  console.log("\nDemo accounts (password: password123):");
+  console.log("  esat.celebioglu@sabanciuniv.edu   (customer)");
+  console.log("  sales@demo.com                    (sales_manager)");
+  console.log("  product@demo.com                  (product_manager)");
+  console.log("\nDemo product labels:");
+  console.log("  A = Cotton Harrington Jacket (A)  [JC-006, stock=0]");
+  console.log("  B = Canvas Espadrilles (B)        [FW-004, stock=1]");
+  console.log("  C = Linen Camp Collar Shirt (C)   [SH-003, stock=18]");
+  console.log("  E = Merino Wool Overcoat (E)      [JC-001, Order 1: delivered Apr-10]");
+  console.log("  F = Merino V-Neck Sweater (F)     [KN-002, Order 4: delivered Jun-01 — refundable]");
+  console.log("  G = Cashmere Crew Sweater (G)     [KN-001, Order 2: processing — cancellable]");
+  console.log("  H = Leather Chelsea Boots (H)     [FW-001, Order 3: in_transit]");
 }
 
 main()

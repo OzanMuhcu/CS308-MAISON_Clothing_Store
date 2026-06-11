@@ -55,7 +55,7 @@ const pmOrder = {
   status: "processing",
   createdAt: new Date().toISOString(),
   user: { id: 2, name: "Eve", email: "eve@example.com" },
-  items: [{ id: 1, productName: "Canvas Jacket", quantity: 2 }],
+  items: [{ id: 1, productId: 42, productName: "Canvas Jacket", quantity: 2 }],
   address: null,
 };
 
@@ -219,6 +219,22 @@ describe("ProductManagerAdmin — orders tab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Orders" }));
     await screen.findByText("INV-PM01");
     expect(screen.getByRole("button", { name: /in transit/i })).toBeTruthy();
+  });
+
+  test("shows customer ID in the orders table", async () => {
+    render(<ProductManagerAdmin />, { wrapper: Wrapper });
+    await screen.findByText("All Products");
+    fireEvent.click(screen.getByRole("button", { name: "Orders" }));
+    await screen.findByText("INV-PM01");
+    expect(screen.getByText("ID: 2")).toBeTruthy();
+  });
+
+  test("shows product ID alongside product name in the orders table", async () => {
+    render(<ProductManagerAdmin />, { wrapper: Wrapper });
+    await screen.findByText("All Products");
+    fireEvent.click(screen.getByRole("button", { name: "Orders" }));
+    await screen.findByText("INV-PM01");
+    expect(screen.getByText("[#42]")).toBeTruthy();
   });
 
   test("shows 'No orders found.' when orders list is empty", async () => {
