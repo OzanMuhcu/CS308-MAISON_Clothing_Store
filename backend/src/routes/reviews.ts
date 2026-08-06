@@ -182,6 +182,55 @@ router.get("/my/:productId", authenticate, async (req: Request, res: Response, n
   }
 });
 
+// ── Product Manager: GET /api/reviews/admin/comments — Story 44 moderation queue ──
+// Returns every comment (pending + approved + rejected) with full user and
+// product context so the PM admin can render the full queue and tell statuses
+// apart at a glance. Optional ?status=pending|approved|rejected narrows the
+// result if the UI wants to render a single tab.
+router.get("/admin/comments", authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (req.user!.role !== "product_manager") {
+      throw new AppError(403, "Only product managers can manage comments");
+    }
+
+    const statusParam = typeof req.query.status === "string" ? req.query.status : undefined;
+    const allowed = ["pending", "approved", "rejected"] as const;
+    const where: any = {};
+    if (statusParam) {
+      if (!allowed.includes(statusParam as any)) {
+        throw new AppError(400, "Invalid status filter");
+      }
+      where.status = statusParam;
+    }
+
+    const comments = await prisma.comment.findMany({
+      where,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        product: { select: { id: true, name: true } },
+      },
+      orderBy: [
+        // Pending first so the moderator sees outstanding work at the top.
+        { status: "asc" },
+        { createdAt: "desc" },
+      ],
+    });
+
+    res.json(
+      comments.map((c: any) => ({
+        id: c.id,
+        text: c.text,
+        status: c.status,
+        createdAt: c.createdAt,
+        user: { id: c.user.id, name: c.user.name, email: c.user.email },
+        product: { id: c.product.id, name: c.product.name },
+      }))
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── Product Manager: GET /api/reviews/pending — list all pending comments ──
 router.get("/pending", authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {

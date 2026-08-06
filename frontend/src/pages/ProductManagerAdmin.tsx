@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 import type { Category } from "../types";
 
@@ -33,14 +34,36 @@ const EMPTY_FORM = {
   distributorInfo: "",
 };
 
-interface PendingComment {
+// Story 44: moderation queue item. Same shape as the old PendingComment
+// but renamed to reflect that the admin endpoint can return any status
+// (pending / approved / rejected), not just pending.
+type CommentStatus = "pending" | "approved" | "rejected";
+
+interface AdminComment {
   id: number;
   text: string;
-  status: string;
+  status: CommentStatus;
   createdAt: string;
   user: { id: number; name: string; email: string };
   product: { id: number; name: string };
 }
+
+// Story 44 acceptance: approved / rejected / pending must be visually
+// distinguishable in the admin UI. Each status gets its own colour family.
+const COMMENT_BADGE: Record<CommentStatus, string> = {
+  pending: "bg-amber-100 text-amber-800",
+  approved: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-800",
+};
+
+type CommentFilter = "all" | CommentStatus;
+
+const COMMENT_FILTERS: { key: CommentFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected" },
+];
 
 // Story 42 sub-task: delivery address shape persisted on each order at checkout.
 interface OrderAddress {
@@ -91,9 +114,12 @@ export default function ProductManagerAdmin() {
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [comments, setComments] = useState<PendingComment[]>([]);
+  const [comments, setComments] = useState<AdminComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [moderating, setModerating] = useState<number | null>(null);
+  // Story 44: status filter for the moderation queue. "all" shows pending +
+  // approved + rejected together so the moderator can see audit history.
+  const [commentFilter, setCommentFilter] = useState<CommentFilter>("pending");
 
   // Orders state
   const [pmOrders, setPmOrders] = useState<any[]>([]);
@@ -150,9 +176,11 @@ export default function ProductManagerAdmin() {
         });
     }
     if (tab === "comments") {
+      // Story 44: fetch the full queue so the badges + counts can reflect
+      // every status; the active chip filters locally.
       setCommentsLoading(true);
       api
-        .get("/reviews/pending")
+        .get("/reviews/admin/comments")
         .then(({ data }) => setComments(Array.isArray(data) ? data : []))
         .catch(console.error)
         .finally(() => setCommentsLoading(false));
@@ -231,7 +259,9 @@ export default function ProductManagerAdmin() {
     setModerating(id);
     try {
       await api.patch(`/reviews/comment/${id}/status`, { status });
-      setComments((prev) => prev.filter((c) => c.id !== id));
+      // Story 44: keep the row in the list with its new status so the PM
+      // can see audit history; the filter chip + badge will reflect the change.
+      setComments((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
     } catch (err) {
       console.error(err);
     } finally {
@@ -998,20 +1028,48 @@ export default function ProductManagerAdmin() {
       )}
 
       {/* Comments */}
-      {tab === "comments" && (
+      {tab === "comments" && (() => {
+        const counts = {
+          all: comments.length,
+          pending: comments.filter((c) => c.status === "pending").length,
+          approved: comments.filter((c) => c.status === "approved").length,
+          rejected: comments.filter((c) => c.status === "rejected").length,
+        };
+        const filteredComments =
+          commentFilter === "all"
+            ? comments
+            : comments.filter((c) => c.status === commentFilter);
+        return (
         <>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-brand-900">Pending Comments</h2>
-            {comments.length > 0 && (
-              <span className="text-sm text-brand-500">{comments.length} awaiting review</span>
-            )}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <h2 className="text-xl font-semibold text-brand-900">Comment Moderation</h2>
+            <div className="flex flex-wrap gap-2">
+              {COMMENT_FILTERS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setCommentFilter(key)}
+                  className={`px-3 py-1 text-xs tracking-widest uppercase font-medium transition-colors border ${
+                    commentFilter === key
+                      ? "bg-brand-900 text-brand-50 border-brand-900"
+                      : "bg-white text-brand-700 border-brand-200 hover:border-brand-400"
+                  }`}
+                >
+                  {label} ({counts[key]})
+                </button>
+              ))}
+            </div>
           </div>
           {commentsLoading ? (
             <div className="flex justify-center py-20">
               <div className="w-6 h-6 border-2 border-brand-900 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : comments.length === 0 ? (
-            <p className="text-center text-brand-400 py-12 text-sm">No pending comments.</p>
+          ) : filteredComments.length === 0 ? (
+            <p className="text-center text-brand-400 py-12 text-sm">
+              {commentFilter === "all"
+                ? "No comments yet."
+                : `No ${commentFilter} comments.`}
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1020,41 +1078,64 @@ export default function ProductManagerAdmin() {
                     <th className="text-left py-3 text-brand-500 font-medium">Product</th>
                     <th className="text-left py-3 text-brand-500 font-medium">User</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Comment</th>
+                    <th className="text-left py-3 text-brand-500 font-medium">Status</th>
                     <th className="text-left py-3 text-brand-500 font-medium">Date</th>
                     <th className="text-right py-3 text-brand-500 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {comments.map((c) => (
-                    <tr key={c.id} className="border-b border-brand-100 hover:bg-brand-50 transition-colors">
-                      <td className="py-3 font-medium text-brand-900 whitespace-nowrap">{c.product.name}</td>
+                  {filteredComments.map((c) => (
+                    <tr key={c.id} className="border-b border-brand-100 hover:bg-brand-50 transition-colors align-top">
+                      <td className="py-3 whitespace-nowrap">
+                        {/* Story 44: link to the product so the PM can verify
+                            the comment is on the correct item before moderating. */}
+                        <Link
+                          to={`/products/${c.product.id}`}
+                          className="font-medium text-brand-900 hover:underline underline-offset-2"
+                        >
+                          {c.product.name}
+                        </Link>
+                      </td>
                       <td className="py-3 text-brand-600 whitespace-nowrap">
-                        <div>{c.user.name}</div>
+                        <div className="font-medium text-brand-900">{c.user.name}</div>
                         <div className="text-xs text-brand-400">{c.user.email}</div>
                       </td>
-                      <td className="py-3 text-brand-700 max-w-xs">
-                        <p className="line-clamp-3 whitespace-pre-wrap break-words">{c.text}</p>
+                      <td className="py-3 text-brand-700 max-w-md">
+                        <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-snug">{c.text}</p>
+                      </td>
+                      <td className="py-3 whitespace-nowrap">
+                        {/* Story 44: status badge — colour family per status
+                            so approved / rejected / pending stand out. */}
+                        <span
+                          className={`text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full ${COMMENT_BADGE[c.status]}`}
+                        >
+                          {c.status}
+                        </span>
                       </td>
                       <td className="py-3 text-brand-400 whitespace-nowrap text-xs">
-                        {new Date(c.createdAt).toLocaleDateString()}
+                        {new Date(c.createdAt).toLocaleString()}
                       </td>
                       <td className="py-3 text-right whitespace-nowrap">
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => moderateComment(c.id, "approved")}
-                            disabled={moderating === c.id}
-                            className="px-3 py-1 text-xs font-medium bg-brand-900 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => moderateComment(c.id, "rejected")}
-                            disabled={moderating === c.id}
-                            className="px-3 py-1 text-xs font-medium border border-brand-300 text-brand-600 hover:bg-brand-50 transition-colors disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                        </div>
+                        {c.status === "pending" ? (
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => moderateComment(c.id, "approved")}
+                              disabled={moderating === c.id}
+                              className="px-3 py-1 text-xs font-medium bg-brand-900 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => moderateComment(c.id, "rejected")}
+                              disabled={moderating === c.id}
+                              className="px-3 py-1 text-xs font-medium border border-brand-300 text-brand-600 hover:bg-brand-50 transition-colors disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-brand-300">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1063,7 +1144,8 @@ export default function ProductManagerAdmin() {
             </div>
           )}
         </>
-      )}
+        );
+      })()}
     </div>
   );
 }
